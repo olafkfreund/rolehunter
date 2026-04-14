@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.gitignore
+.env
+.env.local
+uploads
+README.md
+.dockerignore
+Dockerfile
+docker-compose.yml
+*.log
+coverage
+playwright-report

@@ -1,0 +1,150 @@
+import Anthropic from "@anthropic-ai/sdk";
+import { getEnv } from "../env";
+import {
+  SYSTEM_ANALYZE_FEEDBACK,
+  SYSTEM_CANONICALIZE_GAPS,
+  SYSTEM_COVER_LETTER,
+  SYSTEM_EXTRACT_CV,
+  SYSTEM_FLASHCARDS,
+  SYSTEM_LEARN_RESOURCES,
+  SYSTEM_LINKEDIN_IMPORT,
+  SYSTEM_LINKEDIN_SEO,
+  SYSTEM_MATCH,
+  SYSTEM_REWRITE_CV,
+} from "./prompts";
+import type {
+  CoverLetterInput,
+  CoverLetterResult,
+  CvJson,
+  FeedbackAnalysis,
+  FeedbackEntry,
+  FlashcardOut,
+  GapCanonicalizeResult,
+  GapClusterMember,
+  JobInput,
+  LearningResourcesResult,
+  LinkedInImportResult,
+  LinkedInInput,
+  LinkedInResult,
+  LlmProvider,
+  MatchResult,
+  RewriteResult,
+} from "./types";
+
+let client: Anthropic | null = null;
+function getClient(): Anthropic {
+  if (client) return client;
+  const env = getEnv();
+  if (!env.ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY not set");
+  client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+  return client;
+}
+
+async function call(system: string, user: string, maxTokens = 4096): Promise<string> {
+  const env = getEnv();
+  const res = await getClient().messages.create({
+    model: env.CLAUDE_MODEL,
+    max_tokens: maxTokens,
+    system: [
+      {
+        type: "text",
+        text: system,
+        cache_control: { type: "ephemeral" },
+      },
+    ],
+    messages: [{ role: "user", content: user }],
+  });
+  const block = res.content.find((b) => b.type === "text");
+  if (!block || block.type !== "text") throw new Error("No text in Claude response");
+  return block.text;
+}
+
+function parseJson<T>(text: string): T {
+  const trimmed = text.trim();
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const raw = fenced ? fenced[1] : trimmed;
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  const body = start >= 0 && end >= 0 ? raw.slice(start, end + 1) : raw;
+  return JSON.parse(body) as T;
+}
+
+export const claudeProvider: LlmProvider = {
+  name: "claude",
+
+  async extractCv(rawText: string): Promise<CvJson> {
+    const text = await call(SYSTEM_EXTRACT_CV, rawText.slice(0, 40_000), 4096);
+    return parseJson<CvJson>(text);
+  },
+
+  async match(cv: CvJson, job: JobInput): Promise<MatchResult> {
+    const user = `## CV\n\n${JSON.stringify(cv, null, 2)}\n\n## Job\n\nTitle: ${job.title}\nCompany: ${job.company}\nLocation: ${job.location ?? ""}\n\n${job.description}`;
+    const text = await call(SYSTEM_MATCH, user, 2048);
+    return parseJson<MatchResult>(text);
+  },
+
+  async rewriteCv(cv: CvJson, job: JobInput): Promise<RewriteResult> {
+    const user = `## CV\n\n${JSON.stringify(cv, null, 2)}\n\n## Job\n\nTitle: ${job.title}\nCompany: ${job.company}\n\n${job.description}`;
+    const text = await call(SYSTEM_REWRITE_CV, user, 6000);
+    return parseJson<RewriteResult>(text);
+  },
+
+  async linkedinSeo(input: LinkedInInput): Promise<LinkedInResult> {
+    const user = `Target role: ${input.targetRole}\n\nCurrent headline:\n${input.headline}\n\nCurrent About:\n${input.about}`;
+    const text = await call(SYSTEM_LINKEDIN_SEO, user, 3000);
+    return parseJson<LinkedInResult>(text);
+  },
+
+  async generateCoverLetter(input: CoverLetterInput): Promise<CoverLetterResult> {
+    const user = [
+      `## CV\n\n${JSON.stringify(input.cv, null, 2)}`,
+      `## Job\n\nTitle: ${input.job.title}\nCompany: ${input.job.company}\nLocation: ${input.job.location ?? ""}\n\n${input.job.description}`,
+      `## Profile\n\n${JSON.stringify(input.profile, null, 2)}`,
+      input.templateBodyMd ? `## Template\n\n${input.templateBodyMd}` : "",
+    ].filter(Boolean).join("\n\n");
+    const text = await call(SYSTEM_COVER_LETTER, user, 3000);
+    return parseJson<CoverLetterResult>(text);
+  },
+
+  async generateFlashcards(cv: CvJson, job: JobInput): Promise<FlashcardOut[]> {
+    const user = `## CV\n\n${JSON.stringify(cv, null, 2)}\n\n## Job\n\nTitle: ${job.title}\nCompany: ${job.company}\n\n${job.description}`;
+    const text = await call(SYSTEM_FLASHCARDS, user, 6000);
+    const trimmed = text.trim();
+    const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+    const raw = fenced ? fenced[1] : trimmed;
+    const start = raw.indexOf("[");
+    const end = raw.lastIndexOf("]");
+    const body = start >= 0 && end >= 0 ? raw.slice(start, end + 1) : raw;
+    return JSON.parse(body) as FlashcardOut[];
+  },
+
+  async analyzeFeedback(entries: FeedbackEntry[]): Promise<FeedbackAnalysis> {
+    const user = JSON.stringify(entries, null, 2);
+    const text = await call(SYSTEM_ANALYZE_FEEDBACK, user, 2500);
+    return parseJson<FeedbackAnalysis>(text);
+  },
+
+  async canonicalizeGaps(input: GapClusterMember[]): Promise<GapCanonicalizeResult> {
+    const user = JSON.stringify(input);
+    const text = await call(SYSTEM_CANONICALIZE_GAPS, user, 8000);
+    return parseJson<GapCanonicalizeResult>(text);
+  },
+
+  async generateLearningResources(skill: string): Promise<LearningResourcesResult> {
+    const text = await call(SYSTEM_LEARN_RESOURCES, `Skill: ${skill}`, 2500);
+    return parseJson<LearningResourcesResult>(text);
+  },
+
+  async importLinkedInPdf(rawText: string): Promise<LinkedInImportResult> {
+    const text = await call(SYSTEM_LINKEDIN_IMPORT, rawText.slice(0, 60_000), 16000);
+    try {
+      return parseJson<LinkedInImportResult>(text);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      throw new Error(
+        `LinkedIn JSON truncated or malformed (${msg}). ` +
+          `Try again; if it recurs, shorten your LinkedIn About section or retry with Gemini (larger output window).`,
+      );
+    }
+  },
+};
