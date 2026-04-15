@@ -44,6 +44,21 @@ function linkedinKey(q: string, page: number, location?: string): string {
   return `linkedin::${page}::${q.toLowerCase()}::${location ?? ""}`;
 }
 
+/**
+ * JSearch has no separate location parameter — it folds everything into
+ * one natural-language query. When the user picked a location, append it
+ * to the query string so JSearch returns geo-scoped results instead of
+ * defaulting to US-heavy global output.
+ */
+function composeJSearchQuery(q: string, location: string | undefined): string {
+  if (!location) return q;
+  const loc = location.trim();
+  if (!loc) return q;
+  // If the query already mentions the location, don't duplicate.
+  if (q.toLowerCase().includes(loc.toLowerCase())) return q;
+  return `${q} in ${loc}`;
+}
+
 type SourceOutcome = {
   cached: boolean;
   quota: { remaining: number | null };
@@ -51,15 +66,20 @@ type SourceOutcome = {
   error?: string;
 };
 
-async function runJSearch(q: string, page: number): Promise<SourceOutcome> {
-  const key = jsearchKey(q, page);
+async function runJSearch(
+  q: string,
+  page: number,
+  location: string | undefined,
+): Promise<SourceOutcome> {
+  const composed = composeJSearchQuery(q, location);
+  const key = jsearchKey(composed, page);
   const now = Date.now();
   const lastAt = jsearchRecent.get(key);
   if (lastAt && now - lastAt < CACHE_TTL_MS) {
-    const rows = await searchCachedJobs(q);
+    const rows = await searchCachedJobs(composed);
     return { cached: true, quota: { remaining: null }, jobs: rows };
   }
-  const result = await jsearchSearch(q, { page, num_pages: 1 });
+  const result = await jsearchSearch(composed, { page, num_pages: 1 });
   const jobs: JobListing[] = [];
   for (const j of result.data) {
     if (!j || typeof j.job_id !== "string") continue;
@@ -130,7 +150,7 @@ export const GET = wrap(async (req: Request) => {
   const { q, location, page } = parsed.data;
 
   const [jsearchSettled, linkedinSettled] = await Promise.allSettled([
-    runJSearch(q, page),
+    runJSearch(q, page, location),
     runLinkedIn(q, page, location),
   ]);
 
