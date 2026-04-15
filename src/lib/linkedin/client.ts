@@ -100,6 +100,38 @@ function extractSingle(json: unknown): unknown {
   return json;
 }
 
+/**
+ * Fantastic Jobs treats `location_filter` as a single exact token, not a
+ * composite. "London, UK" returns zero rows; "London" returns all London jobs.
+ * Strip obvious country-code/country suffixes so the first segment is used
+ * verbatim. Keeps only the first comma-separated segment; drops " (remote)",
+ * "UK", "GB", "US", "USA", trailing state codes, etc.
+ */
+export function normaliseLocation(raw?: string | null): string | undefined {
+  if (!raw) return undefined;
+  const cleaned = raw
+    .replace(/\s*\((remote|hybrid|on[- ]?site)\)\s*/gi, "")
+    .trim();
+  if (!cleaned) return undefined;
+  const first = cleaned.split(",")[0].trim();
+  if (!first) return undefined;
+  // If the first segment is itself a lone country code, return the fuller form.
+  const countryCodes = new Set([
+    "uk", "gb", "us", "usa", "ca", "au", "nz", "ie", "de", "fr", "es",
+    "it", "nl", "be", "se", "no", "fi", "dk", "pl", "pt", "ch", "at",
+  ]);
+  if (countryCodes.has(first.toLowerCase())) {
+    // Country-only input like "UK" or "GB" → expand to the canonical name
+    // the vendor recognises.
+    const expansions: Record<string, string> = {
+      uk: "United Kingdom", gb: "United Kingdom",
+      us: "United States", usa: "United States",
+    };
+    return expansions[first.toLowerCase()] ?? first;
+  }
+  return first;
+}
+
 export async function searchJobs(
   query: string,
   opts: LinkedInSearchOpts = {},
@@ -109,7 +141,8 @@ export async function searchJobs(
     limit: String(opts.limit ?? 20),
     offset: String(opts.offset ?? 0),
   });
-  if (opts.location) params.set("location_filter", opts.location);
+  const loc = normaliseLocation(opts.location);
+  if (loc) params.set("location_filter", loc);
 
   const res = await linkedInFetch("/active-jb-7d", params);
 

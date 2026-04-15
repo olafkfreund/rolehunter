@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { LINKEDIN_LOCATIONS } from "@/lib/linkedin/locations";
 
 type Source = "jsearch" | "linkedin" | "both";
 
@@ -170,10 +171,17 @@ export function JobsSearchForm() {
         />
         <input
           className={input}
-          placeholder="Location (optional, used by LinkedIn)"
+          placeholder="Location (pick or type; single city/country works best)"
           value={location}
           onChange={(e) => setLocation(e.target.value)}
+          list="linkedin-locations"
+          autoComplete="off"
         />
+        <datalist id="linkedin-locations">
+          {LINKEDIN_LOCATIONS.map((loc) => (
+            <option key={loc} value={loc} />
+          ))}
+        </datalist>
         <button
           type="submit"
           disabled={busy || q.trim().length === 0}
