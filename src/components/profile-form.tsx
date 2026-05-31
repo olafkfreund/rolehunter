@@ -158,6 +158,39 @@ export function ProfileForm({ initial }: { initial: Profile }) {
         />
       </section>
 
+      <section className="space-y-3 rounded-lg border border-[var(--border)] p-4">
+        <div className="flex items-baseline justify-between gap-2 flex-wrap">
+          <h3 className="font-semibold">Home address</h3>
+          <span className="text-[11px] text-[var(--muted-foreground)] font-mono">
+            for commute calculations
+          </span>
+        </div>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Geocoded on save via OpenStreetMap (free, no key). Used to show distance to each
+          company's headquarters on job pages. Google Maps commute time / cost arrives in a
+          follow-up.
+        </p>
+        <div className={field}>
+          <div className={label}>Address</div>
+          <input
+            className={input}
+            placeholder="221B Baker Street, London NW1 6XE, UK"
+            value={(state as { homeAddress?: string | null }).homeAddress ?? ""}
+            onChange={(e) =>
+              set("homeAddress" as keyof typeof state, e.target.value as never)
+            }
+          />
+        </div>
+        {(state as { homeLat?: number | null }).homeLat != null &&
+          (state as { homeLng?: number | null }).homeLng != null && (
+            <div className="text-[11px] font-mono text-[var(--muted-foreground)]">
+              geocoded:{" "}
+              {(state as { homeLat?: number | null }).homeLat?.toFixed(4)},{" "}
+              {(state as { homeLng?: number | null }).homeLng?.toFixed(4)}
+            </div>
+          )}
+      </section>
+
       <section className="space-y-4 rounded-lg border border-[var(--border)] p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-semibold">LinkedIn</h3>

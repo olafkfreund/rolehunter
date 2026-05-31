@@ -13,6 +13,7 @@ import {
   index,
   uniqueIndex,
   boolean,
+  doublePrecision,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -64,6 +65,12 @@ export const profile = pgTable("profile", {
   linkedinUrl: text("linkedin_url"),
   linkedinHeadline: text("linkedin_headline"),
   linkedinAbout: text("linkedin_about"),
+  // v3.2 — full home address for commute calculations (#43 slice 1)
+  // Geocoded via OpenStreetMap Nominatim on save (free, no key).
+  homeAddress: text("home_address"),
+  homeLat: doublePrecision("home_lat"),
+  homeLng: doublePrecision("home_lng"),
+  homeGeocodedAt: timestamp("home_geocoded_at"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
@@ -111,6 +118,11 @@ export const jobListings = pgTable(
       (): any => searchProfiles.id,
       { onDelete: "set null" },
     ),
+    // v3.2 — companies (epic #43 slice 1)
+    // Nullable: backfilled lazily on first "Should you work here?" click per job.
+    companyId: integer("company_id").references((): any => companies.id, {
+      onDelete: "set null",
+    }),
   },
   (t) => ({
     externalIdx: uniqueIndex("job_listings_external_idx").on(t.source, t.externalId),
@@ -536,3 +548,43 @@ export const portfolioItems = pgTable(
 );
 
 export type PortfolioItem = typeof portfolioItems.$inferSelect;
+
+// ─────────────────────────────────────────────────────────────────────────
+// v3.2 — Companies (epic #43 slice 1)
+//
+// Canonical per-company record. Job listings reference it by FK so multiple
+// jobs at the same employer share one cached enrichment record. Slice 1
+// populates the row from zero-cost sources (Wikidata, Layoffs.fyi, Clearbit
+// logo URL). Paid sources (Glassdoor / Levels.fyi / Crunchbase / Google Maps)
+// land in later slices and just add columns / sibling tables.
+
+export const companies = pgTable(
+  "companies",
+  {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    website: text("website"),
+    headquarters: text("headquarters"),
+    foundedYear: integer("founded_year"),
+    summary: text("summary").notNull().default(""),
+    logoUrl: text("logo_url"),
+    wikidataId: text("wikidata_id"),
+    linkedinUrl: text("linkedin_url"),
+    glassdoorUrl: text("glassdoor_url"),
+    // Layoffs.fyi flags
+    hasRecentLayoff: boolean("has_recent_layoff").notNull().default(false),
+    lastLayoffAt: timestamp("last_layoff_at"),
+    lastLayoffCount: integer("last_layoff_count"),
+    // Cache control: any source can stamp this when it last refreshed
+    enrichmentSyncedAt: timestamp("enrichment_synced_at"),
+    rawJson: jsonb("raw_json"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    uniqSlug: uniqueIndex("companies_slug_idx").on(t.slug),
+  }),
+);
+
+export type Company = typeof companies.$inferSelect;

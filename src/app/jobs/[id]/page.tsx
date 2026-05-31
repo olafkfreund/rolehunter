@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import { getJob, updateJobDescription } from "@/lib/repo/jobs";
 import { getJobDetail } from "@/lib/linkedin/client";
 import { listApplicationsWithJob } from "@/lib/repo/applications";
+import { getCompanyForJob } from "@/lib/repo/companies";
+import { getProfile } from "@/lib/repo/profile";
+import { haversineKm } from "@/lib/companies/geo";
 import type { JobListing } from "@/lib/db/schema";
 import { MatchPanel } from "@/components/match-panel";
 import { CvRewritePanel } from "@/components/cv-rewrite-panel";
@@ -10,6 +13,7 @@ import { InterviewsPanel } from "@/components/interviews-panel";
 import { CoverLetterPanel } from "@/components/cover-letter-panel";
 import { FlashcardsPanel } from "@/components/flashcards-panel";
 import { JobActionBar } from "@/components/job-action-bar";
+import { CompanyPanel } from "@/components/company-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +61,18 @@ export default async function JobDetailPage({
   const application = applications.find((a) => a.jobId === job.id) ?? null;
   const applicationId: number | null = application?.id ?? null;
 
+  // v3.2 — company panel data
+  const [company, profileForGeo] = await Promise.all([
+    getCompanyForJob(job.id),
+    getProfile(),
+  ]);
+  let initialDistanceKm: number | null = null;
+  // Note: we don't have HQ lat/lng cached yet (slice-2 follow-up); for now,
+  // only show distance once a future slice geocodes the company HQ.
+  // Keeping the prop wired so the panel "remembers" the state once it exists.
+  void haversineKm;
+  const profileHasHomeAddress = !!profileForGeo.homeLat && !!profileForGeo.homeLng;
+
   return (
     <div className="space-y-6">
       <nav className="text-sm">
@@ -98,6 +114,13 @@ export default async function JobDetailPage({
           )}
         </div>
       </header>
+
+      <CompanyPanel
+        jobId={job.id}
+        initialCompany={company}
+        initialDistanceKm={initialDistanceKm}
+        profileHasHomeAddress={profileHasHomeAddress}
+      />
 
       <MatchPanel jobId={job.id} />
 
