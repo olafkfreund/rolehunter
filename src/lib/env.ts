@@ -15,6 +15,10 @@ const schema = z.object({
   APIFY_API_TOKEN: z.string().optional().default(""),
   APIFY_LINKEDIN_ACTOR_ID: z.string().optional().default(""),
   APIFY_GLASSDOOR_ACTOR_ID: z.string().optional().default(""),
+  // v3.2 (#43 final-stretch) — extra Apify actors for company enrichment
+  APIFY_LEVELS_FYI_ACTOR_ID: z.string().optional().default(""),
+  APIFY_LAYOFFS_ACTOR_ID: z.string().optional().default(""),
+  APIFY_LINKEDIN_COMPANY_ACTOR_ID: z.string().optional().default(""),
   APIFY_USD_PER_RUN_ESTIMATE: z.string().optional().default(""),
   BUDGET_APIFY_USD_MONTHLY: z.coerce.number().min(0).default(5),
   DEFAULT_LLM_PROVIDER: z.enum(["claude", "gemini", "openai", "ollama"]).default("claude"),
