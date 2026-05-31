@@ -102,6 +102,54 @@ export async function insertPasted(params: {
   return rows[0];
 }
 
+export async function insertImportedFromUrl(params: {
+  title: string;
+  company?: string;
+  location?: string;
+  description: string;
+  url: string;
+  postedAt?: string | null;
+  salaryMin?: number | null;
+  salaryMax?: number | null;
+  salaryCurrency?: string | null;
+  employmentType?: string | null;
+  extractionMethod: string;
+}): Promise<JobListing> {
+  const db = getDb();
+  // Dedup on URL: if we already imported this URL, return the existing row.
+  const existing = await db
+    .select()
+    .from(schema.jobListings)
+    .where(eq(schema.jobListings.url, params.url))
+    .limit(1);
+  if (existing.length > 0) return existing[0];
+
+  const externalId = `url-${crypto.randomUUID()}`;
+  const rows = await db
+    .insert(schema.jobListings)
+    .values({
+      source: "paste",
+      externalId,
+      title: params.title,
+      company: params.company ?? "",
+      location: params.location ?? "",
+      url: params.url,
+      description: params.description,
+      postedAt: params.postedAt ? new Date(params.postedAt) : null,
+      salaryMin: params.salaryMin ?? null,
+      salaryMax: params.salaryMax ?? null,
+      salaryCurrency: params.salaryCurrency ?? null,
+      rawJson: {
+        via: "url-import",
+        extractionMethod: params.extractionMethod,
+        employmentType: params.employmentType ?? null,
+        importedAt: new Date().toISOString(),
+      },
+    })
+    .returning();
+  return rows[0];
+}
+
 function formatJSearchLocation(j: JSearchJob): string {
   const parts = [j.job_city, j.job_country].filter(
     (s): s is string => typeof s === "string" && s.length > 0,

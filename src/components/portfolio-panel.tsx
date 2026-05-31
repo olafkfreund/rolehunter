@@ -225,8 +225,49 @@ function SourcesTab({
 }) {
   const [gh, setGh] = useState("");
   const [gl, setGl] = useState("");
+  const [url, setUrl] = useState("");
+  const [urlKind, setUrlKind] = useState<"blog_post" | "website">("blog_post");
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
+
+  async function addUrl(e: React.FormEvent) {
+    e.preventDefault();
+    setErr(null);
+    setOk(null);
+    if (!url.trim()) {
+      setErr("Paste a URL");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/portfolio/add-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: url.trim(), kind: urlKind }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        title?: string;
+        tech?: string[];
+        inserted?: number;
+        updated?: number;
+      };
+      if (!res.ok) {
+        setErr(data.error ?? `Import failed (${res.status})`);
+        return;
+      }
+      const detected = data.tech && data.tech.length > 0 ? ` (detected: ${data.tech.join(", ")})` : "";
+      setOk(
+        `Imported "${data.title}" — ${data.inserted ? "added" : "updated"}${detected}`,
+      );
+      setUrl("");
+      await onChange();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function sync(kind: "github" | "gitlab", username: string) {
     setErr(null);
@@ -331,6 +372,49 @@ function SourcesTab({
           </div>
         </form>
       </div>
+
+      <form onSubmit={addUrl} className="card p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="section-label">Import from URL</div>
+          <div className="flex gap-1">
+            {(
+              [
+                ["blog_post", "Blog post"],
+                ["website", "Website"],
+              ] as const
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setUrlKind(k)}
+                className={`px-2 py-0.5 text-[10px] uppercase tracking-wider rounded-md border transition-colors ${
+                  urlKind === k
+                    ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--fg)]"
+                    : "border-[var(--border)] text-[var(--fg-3)] hover:text-[var(--fg-2)]"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://your-blog.example.com/posts/something"
+            className="input flex-1 font-mono text-sm"
+          />
+          <button type="submit" disabled={busy} className="btn btn-primary text-sm">
+            Import
+          </button>
+        </div>
+        <div className="text-[10px] text-[var(--fg-4)]">
+          Reads server-rendered HTML — title, description, body excerpt, and detected tech keywords.
+          Sites that need JavaScript to render may fail; paste manually instead via Add manual.
+        </div>
+      </form>
 
       {err && (
         <div className="rounded-md border border-[var(--danger)]/40 bg-[var(--danger)]/10 px-3 py-2 text-xs">

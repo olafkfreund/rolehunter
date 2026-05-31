@@ -50,7 +50,7 @@ export async function listPortfolioItems(opts: { kind?: string } = {}): Promise<
 
 export async function upsertRepoItems(
   sourceKey: string,
-  kind: "github_repo" | "gitlab_repo",
+  kind: "github_repo" | "gitlab_repo" | "blog_post" | "website",
   items: PortfolioRepoData[],
 ): Promise<{ inserted: number; updated: number }> {
   const db = getDb();
@@ -116,6 +116,20 @@ export async function upsertGitlabItems(
   items: PortfolioRepoData[],
 ): Promise<{ inserted: number; updated: number }> {
   return upsertRepoItems(`gitlab:${username}`, "gitlab_repo", items);
+}
+
+export async function upsertWebItem(
+  kind: "blog_post" | "website",
+  item: PortfolioRepoData,
+): Promise<{ inserted: number; updated: number }> {
+  let host = "unknown";
+  try {
+    host = new URL(item.url).host;
+  } catch {
+    // keep "unknown"
+  }
+  const sourceKey = `${kind === "blog_post" ? "blog" : "web"}:${host}`;
+  return upsertRepoItems(sourceKey, kind, [item]);
 }
 
 export async function createManualItem(input: ManualPortfolioInput): Promise<PortfolioItem> {
