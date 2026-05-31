@@ -5,12 +5,61 @@ import type { JobListing } from "@/lib/db/schema";
 import type { JSearchJob } from "@/lib/jsearch/client";
 import type { LinkedInJob } from "@/lib/linkedin/client";
 
-export async function listJobs(): Promise<JobListing[]> {
+export type ScoreBand = "top" | "stretch" | "pass" | "unscored" | "all";
+
+export async function listJobs(
+  opts: { band?: ScoreBand; limit?: number } = {},
+): Promise<JobListing[]> {
   const db = getDb();
-  return db
+  const band = opts.band ?? "all";
+  const limit = opts.limit ?? 200;
+
+  let query = db
     .select()
     .from(schema.jobListings)
-    .orderBy(desc(schema.jobListings.cachedAt));
+    .orderBy(
+      sql`COALESCE(${schema.jobListings.topScore}, -1) DESC`,
+      desc(schema.jobListings.fetchedAt),
+    )
+    .$dynamic();
+
+  if (band === "top") {
+    query = query.where(sql`${schema.jobListings.topScore} >= 70`);
+  } else if (band === "stretch") {
+    query = query.where(
+      sql`${schema.jobListings.topScore} >= 50 AND ${schema.jobListings.topScore} < 70`,
+    );
+  } else if (band === "pass") {
+    query = query.where(
+      sql`${schema.jobListings.topScore} IS NOT NULL AND ${schema.jobListings.topScore} < 50`,
+    );
+  } else if (band === "unscored") {
+    query = query.where(sql`${schema.jobListings.topScore} IS NULL`);
+  }
+
+  return query.limit(limit);
+}
+
+export async function countJobsByBand(): Promise<Record<ScoreBand, number>> {
+  const db = getDb();
+  const rows = await db.execute<{ band: string; n: number }>(sql`
+    SELECT
+      CASE
+        WHEN top_score IS NULL THEN 'unscored'
+        WHEN top_score >= 70 THEN 'top'
+        WHEN top_score >= 50 THEN 'stretch'
+        ELSE 'pass'
+      END AS band,
+      COUNT(*)::int AS n
+    FROM job_listings
+    GROUP BY band
+  `);
+  const out: Record<ScoreBand, number> = { all: 0, top: 0, stretch: 0, pass: 0, unscored: 0 };
+  for (const r of rows.rows ?? []) {
+    out[r.band as ScoreBand] = Number(r.n);
+    out.all += Number(r.n);
+  }
+  return out;
 }
 
 export async function getJob(id: number): Promise<JobListing | null> {
