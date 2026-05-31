@@ -42,7 +42,7 @@ cd rolehunter
 ./scripts/setup.sh            # generates .env with random free ports and a DB password
 $EDITOR .env                  # paste ANTHROPIC_API_KEY / GEMINI_API_KEY / JSEARCH_RAPIDAPI_KEY
 docker compose up -d --build
-docker compose exec app npx drizzle-kit migrate
+docker compose exec app node scripts/migrate.mjs
 source .env && echo "Open http://127.0.0.1:${APP_PORT}"
 ```
 

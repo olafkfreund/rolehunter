@@ -49,6 +49,6 @@ Generated .env:
 Next steps:
   1. Add your API keys to .env (ANTHROPIC_API_KEY / GEMINI_API_KEY / JSEARCH_RAPIDAPI_KEY).
   2. docker compose up --build -d
-  3. docker compose exec app npx drizzle-kit migrate
+  3. docker compose exec app node scripts/migrate.mjs
   4. Open http://127.0.0.1:${APP_PORT}
 EOF

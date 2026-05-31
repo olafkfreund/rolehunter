@@ -47,9 +47,12 @@ RUN groupadd -g 1001 nodejs && useradd -m -u 1001 -g nodejs nextjs \
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+# Migrations are applied at deploy time with `node scripts/migrate.mjs`, which
+# uses the same node-postgres driver as the app (drizzle-orm + pg, both present
+# in the standalone runtime). drizzle-kit is intentionally not shipped here — it
+# drags in esbuild and only its config-parsing is needed, which we avoid.
 COPY --from=builder --chown=nextjs:nodejs /app/src/lib/db/migrations ./src/lib/db/migrations
-COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts ./drizzle.config.ts
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/drizzle-kit ./node_modules/drizzle-kit
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/migrate.mjs ./scripts/migrate.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
 COPY --from=builder --chown=nextjs:nodejs /ms-playwright /ms-playwright
 

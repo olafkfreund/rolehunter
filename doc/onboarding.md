@@ -23,7 +23,7 @@ cd rolehunter
 ./scripts/setup.sh           # picks two random free ports, writes .env
 $EDITOR .env                 # paste ANTHROPIC_API_KEY / GEMINI_API_KEY / JSEARCH_RAPIDAPI_KEY
 docker compose up -d --build
-docker compose exec app npx drizzle-kit migrate   # or run from host; see development.md
+docker compose exec app node scripts/migrate.mjs   # or run from host; see development.md
 ```
 
 `setup.sh` prints the URL at the end, something like:
