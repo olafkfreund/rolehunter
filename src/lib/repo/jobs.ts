@@ -309,3 +309,27 @@ export async function updateJobDescription(id: number, description: string): Pro
     })
     .where(eq(schema.jobListings.id, id));
 }
+
+/**
+ * Cache the locally-computed role-fit overall score on the job listing.
+ * Only writes when the value actually changed so the page-view path doesn't
+ * burn an UPDATE on every navigation. Returns true when a write happened.
+ */
+export async function cacheJobFitScore(
+  jobId: number,
+  score: number | null,
+): Promise<boolean> {
+  if (score !== null && (!Number.isFinite(score) || score < 0 || score > 100)) {
+    return false;
+  }
+  const db = getDb();
+  const result = await db
+    .update(schema.jobListings)
+    .set({
+      fitOverallScore: score,
+      fitScoredAt: score !== null ? new Date() : null,
+    })
+    .where(eq(schema.jobListings.id, jobId))
+    .returning({ id: schema.jobListings.id });
+  return result.length > 0;
+}

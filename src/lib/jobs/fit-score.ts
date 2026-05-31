@@ -9,6 +9,8 @@ import type { Company, JobListing, Profile } from "@/lib/db/schema";
 import type { CvJson } from "@/lib/llm";
 import { classifyJobSkills, type ClassifyResult } from "./skill-classify";
 import { convertCurrency, SUPPORTED_BASES } from "@/lib/fx";
+import { resolveWorkLocation } from "@/lib/companies/work-location";
+import type { OfficePickResult } from "@/lib/companies/pick-office";
 import {
   fetchCommuteEstimate,
   profileModeToGoogle,
@@ -140,71 +142,11 @@ function scoreExperience(job: JobListing, cv: CvJson | null): FitDimension {
   };
 }
 
-// Culture cue vocabulary. `positive` is the default lean for users who
-// haven't expressed a preference yet; once they set culture_likes /
-// culture_avoids on /profile, those override the default lean.
-//
-// Exported so the profile UI can render exactly these keys as chips —
-// keeps the vocabulary in one place.
-export const CULTURE_KEYWORDS: Array<{
-  key: string;
-  label: string;
-  rx: RegExp;
-  positive: boolean;
-}> = [
-  {
-    key: "remote-first",
-    label: "Remote-first",
-    rx: /\b(remote[- ]first|fully remote|100% remote)\b/i,
-    positive: true,
-  },
-  { key: "hybrid", label: "Hybrid", rx: /\bhybrid\b/i, positive: true },
-  {
-    key: "in-office",
-    label: "In-office",
-    rx: /\b(in[- ]office|on[- ]site|onsite)\b/i,
-    positive: false,
-  },
-  {
-    key: "async",
-    label: "Async-first",
-    rx: /\basynchronous\b|\basync(?:[- ]first| communication)\b/i,
-    positive: true,
-  },
-  {
-    key: "ownership",
-    label: "Strong ownership",
-    rx: /\b(ownership|own[- ]your|end[- ]to[- ]end ownership)\b/i,
-    positive: true,
-  },
-  { key: "fast-paced", label: "Fast-paced", rx: /\bfast[- ]paced\b/i, positive: false },
-  {
-    key: "ambiguity",
-    label: "Ambiguity",
-    rx: /\b(ambiguity|comfortable with ambiguity|loosely defined)\b/i,
-    positive: false,
-  },
-  {
-    key: "scale",
-    label: "Massive scale",
-    rx: /\b(at scale|massive scale|hyper[- ]scale)\b/i,
-    positive: true,
-  },
-  {
-    key: "well-funded",
-    label: "Well-funded",
-    rx: /\b(series [a-d]|recently funded|well[- ]funded)\b/i,
-    positive: true,
-  },
-  {
-    key: "early-stage",
-    label: "Early stage",
-    rx: /\b(early stage|stealth|seed stage|pre[- ]product)\b/i,
-    positive: false,
-  },
-];
-
-export const CULTURE_KEYS = CULTURE_KEYWORDS.map((c) => c.key);
+// Culture cue vocabulary lives in its own module so client components
+// (profile-form.tsx) can import it without pulling in this file's DB-heavy
+// transitive imports. Re-exported here for backwards compatibility.
+export { CULTURE_KEYWORDS, CULTURE_KEYS } from "./culture-keywords";
+import { CULTURE_KEYWORDS } from "./culture-keywords";
 
 function detectCultureCues(jd: string): string[] {
   const found: string[] = [];
@@ -463,21 +405,44 @@ async function scoreLogistics(
   }
 
   const haveHome = profile?.homeLat != null && profile?.homeLng != null;
-  const haveHq = company?.hqLat != null && company?.hqLng != null;
   if (!haveHome) {
     evidence.push("Set your home address in /profile to score commute.");
     return { key: "logistics", label: "Logistics", score: -1, band: "n/a", evidence };
   }
-  if (!haveHq) {
-    evidence.push("Company HQ not yet geocoded — click Enrich on the company panel.");
+  if (!company) {
+    evidence.push("Company not enriched yet — click Enrich on the company panel.");
     return { key: "logistics", label: "Logistics", score: -1, band: "n/a", evidence };
+  }
+
+  // Resolve to the right work location: prefer a city-matched office over HQ
+  // when one exists. Falls back to HQ. Surfaces which we used in evidence.
+  let workLoc: OfficePickResult | null = null;
+  try {
+    workLoc = await resolveWorkLocation(company, profile);
+  } catch {
+    workLoc = null;
+  }
+  if (!workLoc) {
+    evidence.push(
+      "No usable work location — geocode the company HQ or add an office.",
+    );
+    return { key: "logistics", label: "Logistics", score: -1, band: "n/a", evidence };
+  }
+
+  // Note which location was chosen so the user understands the distance.
+  if (workLoc.source === "office-match-by-token") {
+    evidence.push(`Using ${workLoc.label} (matches your area).`);
+  } else if (workLoc.source === "office-closest") {
+    evidence.push(`Using ${workLoc.label}.`);
+  } else if (company.hqLat != null && company.hqLng != null) {
+    evidence.push(`Using ${workLoc.label} (no office in your area).`);
   }
 
   // Haversine fallback (inline; no helper dep loop)
   const R = 6371;
   const toRad = (d: number) => (d * Math.PI) / 180;
   const a = { lat: profile!.homeLat!, lng: profile!.homeLng! };
-  const b = { lat: company!.hqLat!, lng: company!.hqLng! };
+  const b = { lat: workLoc.point.lat, lng: workLoc.point.lng };
   const dLat = toRad(b.lat - a.lat);
   const dLng = toRad(b.lng - a.lng);
   const h =

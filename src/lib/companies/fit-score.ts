@@ -18,9 +18,11 @@ import type {
   CompanyBenefit,
   CompanyFitScore,
   CompanyLayoff,
+  CompanyOffice,
   Profile,
 } from "@/lib/db/schema";
 import { haversineKm } from "./geo";
+import { pickBestOffice } from "./pick-office";
 
 export interface FitFactor {
   key: string;
@@ -41,6 +43,7 @@ interface InputBundle {
   profile: Profile | null;
   layoffs: CompanyLayoff[];
   benefits: CompanyBenefit[];
+  offices?: CompanyOffice[];
 }
 
 function clamp(n: number, lo = 0, hi = 100): number {
@@ -114,20 +117,32 @@ function layoffFactor(c: Company, layoffs: CompanyLayoff[]): FitFactor | null {
   };
 }
 
-function commuteFactor(c: Company, profile: Profile | null): FitFactor | null {
-  if (
-    c.hqLat == null ||
-    c.hqLng == null ||
-    !profile ||
-    profile.homeLat == null ||
-    profile.homeLng == null
-  ) {
+function commuteFactor(
+  c: Company,
+  profile: Profile | null,
+  offices: CompanyOffice[],
+): FitFactor | null {
+  if (!profile || profile.homeLat == null || profile.homeLng == null) {
     return null;
   }
-  const km = haversineKm(
-    { lat: profile.homeLat, lng: profile.homeLng, displayName: "" },
-    { lat: c.hqLat, lng: c.hqLng, displayName: "" },
-  );
+  const userPoint = {
+    lat: profile.homeLat,
+    lng: profile.homeLng,
+    displayName: "",
+  };
+  const hqPoint =
+    c.hqLat != null && c.hqLng != null
+      ? { lat: c.hqLat, lng: c.hqLng, displayName: "" }
+      : null;
+  const picked = pickBestOffice({
+    userLocation: profile.location ?? null,
+    userPoint,
+    hqPoint,
+    hqLabel: c.headquarters ? `HQ ${c.headquarters}` : "HQ",
+    offices,
+  });
+  if (!picked) return null;
+  const km = haversineKm(userPoint, picked.point);
   let contribution: number;
   if (km <= 10) contribution = 100;
   else if (km <= 30) contribution = 85;
@@ -140,7 +155,7 @@ function commuteFactor(c: Company, profile: Profile | null): FitFactor | null {
     label: "Distance from home",
     weight: 2,
     contribution,
-    detail: `${Math.round(km).toLocaleString()} km straight-line`,
+    detail: `${Math.round(km).toLocaleString()} km straight-line · via ${picked.label}`,
   };
 }
 
@@ -188,7 +203,7 @@ export function computeCompanyFitScore(input: InputBundle): CompanyFitBreakdown 
   if (rec) factors.push(rec);
   const lay = layoffFactor(input.company, input.layoffs);
   if (lay) factors.push(lay);
-  const com = commuteFactor(input.company, input.profile);
+  const com = commuteFactor(input.company, input.profile, input.offices ?? []);
   if (com) factors.push(com);
   const ben = benefitsFactor(input.profile, input.benefits);
   if (ben) factors.push(ben);

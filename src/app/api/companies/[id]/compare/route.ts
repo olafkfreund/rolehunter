@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { wrap } from "@/lib/api";
 import { getCompanyById } from "@/lib/repo/companies";
 import { getProfile } from "@/lib/repo/profile";
-import { haversineKm } from "@/lib/companies/geo";
+import { resolveDistanceKm } from "@/lib/companies/work-location";
 
 export const runtime = "nodejs";
 
@@ -20,18 +20,8 @@ export const GET = wrap(async (_req: Request, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   const profile = await getProfile();
-  let distanceKm: number | null = null;
-  if (
-    company.hqLat != null &&
-    company.hqLng != null &&
-    profile.homeLat != null &&
-    profile.homeLng != null
-  ) {
-    distanceKm = haversineKm(
-      { lat: profile.homeLat, lng: profile.homeLng, displayName: "" },
-      { lat: company.hqLat, lng: company.hqLng, displayName: "" },
-    );
-  }
+  const resolved = await resolveDistanceKm(company, profile);
+  const distanceKm = resolved?.km ?? null;
   return NextResponse.json({
     company: {
       id: company.id,
