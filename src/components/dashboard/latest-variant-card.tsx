@@ -13,7 +13,7 @@ type LatestVariant = {
   company: string;
   pdfPath: string | null;
   score: number | null;
-  provider: "claude" | "gemini";
+  provider: "claude" | "gemini" | "openai" | "ollama";
 } | null;
 
 function timeAgo(iso: string): string {

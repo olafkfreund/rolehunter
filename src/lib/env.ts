@@ -27,7 +27,19 @@ export function getEnv(): Env {
   return cached;
 }
 
-export function hasProvider(p: "claude" | "gemini"): boolean {
+export function hasProvider(p: "claude" | "gemini" | "openai" | "ollama"): boolean {
   const env = getEnv();
-  return p === "claude" ? !!env.ANTHROPIC_API_KEY : !!env.GEMINI_API_KEY;
+  switch (p) {
+    case "claude":
+      return !!env.ANTHROPIC_API_KEY;
+    case "gemini":
+      return !!env.GEMINI_API_KEY;
+    case "openai":
+      // OpenAI provider implementation lands in #47; key check ready ahead of time.
+      return !!process.env.OPENAI_API_KEY;
+    case "ollama":
+      // Reachability probe lives in src/lib/llm/ollama.ts when that lands (#47).
+      // Returning false until then so existing fallback chain isn't surprised.
+      return false;
+  }
 }

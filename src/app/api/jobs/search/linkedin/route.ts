@@ -1,17 +1,21 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { wrap } from "@/lib/api";
-import { getEnv } from "@/lib/env";
-import { searchJobs as linkedinSearch } from "@/lib/linkedin/client";
-import { searchCachedJobs, upsertFromLinkedIn } from "@/lib/repo/jobs";
+import { ingestRawJobs } from "@/lib/jobs/ingest";
+import { ensureAdaptersRegistered, get as getAdapter } from "@/lib/jobs/sources";
+import type { SearchParams } from "@/lib/jobs/sources/types";
+import { SourcePermanentError, SourceTransientError } from "@/lib/jobs/sources/errors";
+import { searchCachedJobs } from "@/lib/repo/jobs";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const CACHE_TTL_MS = 60 * 60 * 1000; // 60 minutes
+const ADAPTER_TIMEOUT_MS = 120_000;
 const PAGE_SIZE = 20;
 
-// Module-scoped in-memory cache of recent query timestamps.
+ensureAdaptersRegistered();
+
 const recentQueries = new Map<string, number>();
 
 const querySchema = z.object({
@@ -32,17 +36,6 @@ function cacheKey(q: string, page: number, location?: string): string {
 }
 
 export const GET = wrap(async (req: Request) => {
-  const env = getEnv();
-  if (!env.JSEARCH_RAPIDAPI_KEY) {
-    return NextResponse.json(
-      {
-        error:
-          "LinkedIn search is not configured. Set JSEARCH_RAPIDAPI_KEY in your environment to enable it.",
-      },
-      { status: 501 },
-    );
-  }
-
   const url = new URL(req.url);
   const parsed = querySchema.safeParse({
     q: url.searchParams.get("q") ?? "",
@@ -53,6 +46,15 @@ export const GET = wrap(async (req: Request) => {
     return NextResponse.json(
       { error: parsed.error.issues.map((i) => i.message).join("; ") },
       { status: 400 },
+    );
+  }
+
+  const adapter = getAdapter("linkedin");
+  const availability = await adapter.available();
+  if (!availability.ok) {
+    return NextResponse.json(
+      { error: `LinkedIn search unavailable: ${availability.reason}` },
+      { status: 501 },
     );
   }
 
@@ -71,25 +73,31 @@ export const GET = wrap(async (req: Request) => {
     });
   }
 
-  const limit = PAGE_SIZE;
-  const offset = (page - 1) * PAGE_SIZE;
-  const result = await linkedinSearch(q, { location, limit, offset });
+  const params: SearchParams = {
+    query: q,
+    location,
+    maxResults: PAGE_SIZE * page,
+  };
 
-  const upserted = [];
-  for (const j of result.data) {
-    try {
-      const row = await upsertFromLinkedIn(j);
-      upserted.push(row);
-    } catch (err) {
-      console.error("[linkedin.upsert]", err);
-    }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ADAPTER_TIMEOUT_MS);
+
+  try {
+    const raw = await adapter.search(params, controller.signal);
+    const results = await ingestRawJobs("linkedin", raw);
+    recentQueries.set(key, now);
+    return NextResponse.json({
+      quota: { remaining: null },
+      cached: false,
+      count: results.length,
+      jobs: results.map((r) => r.row),
+    });
+  } catch (err) {
+    const status =
+      err instanceof SourcePermanentError ? 502 : err instanceof SourceTransientError ? 503 : 500;
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `LinkedIn search failed: ${message}` }, { status });
+  } finally {
+    clearTimeout(timer);
   }
-  recentQueries.set(key, now);
-
-  return NextResponse.json({
-    quota: result.quota,
-    cached: false,
-    count: upserted.length,
-    jobs: upserted,
-  });
 });
