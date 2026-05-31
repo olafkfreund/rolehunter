@@ -46,7 +46,13 @@ function buildHref(
 export default async function JobsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ band?: string; fit?: string; sort?: string; show?: string }>;
+  searchParams: Promise<{
+    band?: string;
+    fit?: string;
+    sort?: string;
+    show?: string;
+    rtw?: string;
+  }>;
 }) {
   const sp = await searchParams;
   const band = parseBand(sp.band);
@@ -54,9 +60,24 @@ export default async function JobsPage({
   const sort = parseSort(sp.sort);
   const visibility: "active" | "hidden" | "all" =
     sp.show === "hidden" ? "hidden" : sp.show === "all" ? "all" : "active";
+  const rtwMine = sp.rtw === "mine";
+
+  // Load profile only when the right-to-work filter is active. Single
+  // read; falls through cleanly if the profile has no declared zones.
+  let rtwZones: string[] = [];
+  if (rtwMine) {
+    const { getProfile } = await import("@/lib/repo/profile");
+    const profile = await getProfile();
+    const rtw = (profile as unknown as {
+      rightToWork?: { zones?: unknown };
+    }).rightToWork;
+    if (rtw && Array.isArray(rtw.zones)) {
+      rtwZones = rtw.zones.filter((z): z is string => typeof z === "string");
+    }
+  }
 
   const [jobs, counts, fitCounts] = await Promise.all([
-    listJobs({ band, fitBand, sort, visibility }),
+    listJobs({ band, fitBand, sort, visibility, rightToWorkZones: rtwZones }),
     countJobsByBand(),
     countJobsByFitBand(),
   ]);
@@ -85,7 +106,26 @@ export default async function JobsPage({
   ];
 
   const activeScoreChip = scoreChips.find((c) => c.id === band);
-  const baseParams = { band: sp.band, fit: sp.fit, sort: sp.sort, show: sp.show };
+  const baseParams = {
+    band: sp.band,
+    fit: sp.fit,
+    sort: sp.sort,
+    show: sp.show,
+    rtw: sp.rtw,
+  };
+  const rtwChips: { id: "all" | "mine"; label: string; hint: string }[] = [
+    { id: "all", label: "any location", hint: "Show every role regardless of country" },
+    {
+      id: "mine",
+      label: rtwZones.length > 0
+        ? `right-to-work · ${rtwZones.join("+")}`
+        : "right-to-work · mine",
+      hint:
+        rtwZones.length > 0
+          ? `Filter to roles in ${rtwZones.join(", ")}. Unknown locations stay visible.`
+          : "No zones declared — visit /profile to add them.",
+    },
+  ];
   const visibilityChips: { id: "active" | "hidden" | "all"; label: string }[] = [
     { id: "active", label: "active" },
     { id: "hidden", label: "hidden" },
@@ -169,6 +209,32 @@ export default async function JobsPage({
                   <span className="font-mono text-[10px] text-[var(--fg-4)]">
                     {fitCounts[c.id]?.toLocaleString() ?? 0}
                   </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className="text-[10px] uppercase tracking-wider text-[var(--fg-3)] font-mono">
+              location
+            </span>
+            <div className="flex gap-1">
+              {rtwChips.map((c) => (
+                <Link
+                  key={c.id}
+                  href={buildHref(baseParams, { rtw: c.id === "all" ? null : c.id })}
+                  title={c.hint}
+                  className="px-2 py-1 text-[11px] rounded-md border transition-colors"
+                  style={{
+                    borderColor: (rtwMine ? "mine" : "all") === c.id ? "var(--accent)" : "var(--border)",
+                    color: (rtwMine ? "mine" : "all") === c.id ? "var(--fg)" : "var(--fg-3)",
+                    background:
+                      (rtwMine ? "mine" : "all") === c.id
+                        ? "color-mix(in srgb, var(--accent) 8%, transparent)"
+                        : undefined,
+                  }}
+                >
+                  {c.label}
                 </Link>
               ))}
             </div>
