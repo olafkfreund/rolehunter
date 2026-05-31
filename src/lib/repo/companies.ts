@@ -12,6 +12,7 @@ import {
 import {
   listBenefits,
   listLayoffs,
+  listOffices,
   upsertBenefit,
   upsertConnection,
   upsertLayoff,
@@ -195,11 +196,12 @@ export async function enrichAndPersist(
 
   // Recompute the cached fit score with whatever signals we now have.
   try {
-    const [latestCompany, profile, layoffs, benefits] = await Promise.all([
+    const [latestCompany, profile, layoffs, benefits, offices] = await Promise.all([
       getCompanyById(updated.id),
       getProfile(),
       listLayoffs(updated.id),
       listBenefits(updated.id),
+      listOffices(updated.id),
     ]);
     if (latestCompany) {
       const breakdown = computeCompanyFitScore({
@@ -207,6 +209,7 @@ export async function enrichAndPersist(
         profile,
         layoffs,
         benefits,
+        offices,
       });
       await upsertCompanyFitScore(updated.id, breakdown);
     }

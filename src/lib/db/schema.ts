@@ -143,6 +143,11 @@ export const jobListings = pgTable(
     companyId: integer("company_id").references((): any => companies.id, {
       onDelete: "set null",
     }),
+    // v3.2 — cached role-fit overall score (0-100)
+    // Computed by computeFitReport() on /jobs/[id] view; stamped here so the
+    // /jobs list can show it without recomputing per row.
+    fitOverallScore: smallint("fit_overall_score"),
+    fitScoredAt: timestamp("fit_scored_at"),
   },
   (t) => ({
     externalIdx: uniqueIndex("job_listings_external_idx").on(t.source, t.externalId),

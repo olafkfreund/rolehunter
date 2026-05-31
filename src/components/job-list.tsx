@@ -86,6 +86,7 @@ export function JobList({ jobs }: { jobs: JobListing[] }) {
         const sources = extractSources(job);
         const newBadge = isNew(job);
         const band = scoreBand(job.topScore);
+        const fitBand = scoreBand(job.fitOverallScore);
 
         return (
           <li
@@ -124,6 +125,33 @@ export function JobList({ jobs }: { jobs: JobListing[] }) {
                 </div>
 
                 <div className="mt-2 flex items-center gap-x-2 gap-y-1 flex-wrap text-[11px]">
+                  {job.fitOverallScore !== null && (
+                    <span
+                      className="chip"
+                      title="Local role-fit overall (skills + experience + culture + comp + logistics). Updates when you open the role."
+                      style={{
+                        color:
+                          fitBand === "top"
+                            ? "var(--ok)"
+                            : fitBand === "stretch"
+                              ? "var(--warn)"
+                              : fitBand === "pass"
+                                ? "var(--danger)"
+                                : "var(--fg-3)",
+                        borderColor:
+                          fitBand === "top"
+                            ? "color-mix(in srgb, var(--ok) 40%, var(--border))"
+                            : fitBand === "stretch"
+                              ? "color-mix(in srgb, var(--warn) 40%, var(--border))"
+                              : fitBand === "pass"
+                                ? "color-mix(in srgb, var(--danger) 35%, var(--border))"
+                                : "var(--border)",
+                      }}
+                    >
+                      <span className="mono">FIT</span>
+                      <span className="mono">{job.fitOverallScore}</span>
+                    </span>
+                  )}
                   {sources.map((s, i) => (
                     <span key={s} className="chip">
                       <span className="dot" style={{ background: i === 0 ? "var(--accent)" : "var(--fg-4)" }} />

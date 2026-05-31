@@ -5,8 +5,8 @@
 import { eq, inArray } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import type { Company, CompanyFitScore } from "@/lib/db/schema";
-import { haversineKm } from "./geo";
 import { getProfile } from "@/lib/repo/profile";
+import { resolveDistanceKm } from "./work-location";
 
 export interface CompareRow {
   applicationId: number;
@@ -83,21 +83,19 @@ export async function listApplicationCompanies(): Promise<CompareRow[]> {
   const fitMap = new Map<number, CompanyFitScore>();
   for (const f of fitRows) fitMap.set(f.companyId, f);
 
-  return withCompany.flatMap((r) => {
-    const company = companyMap.get(r.companyId);
-    if (!company) return [];
-    let distanceKm: number | null = null;
-    if (
-      company.hqLat != null &&
-      company.hqLng != null &&
-      profile.homeLat != null &&
-      profile.homeLng != null
-    ) {
-      distanceKm = haversineKm(
-        { lat: profile.homeLat, lng: profile.homeLng, displayName: "" },
-        { lat: company.hqLat, lng: company.hqLng, displayName: "" },
-      );
-    }
+  // flatMap can't await, so resolve distances in parallel up front
+  const withDistance = await Promise.all(
+    withCompany.map(async (r) => {
+      const company = companyMap.get(r.companyId);
+      if (!company) return null;
+      const d = await resolveDistanceKm(company, profile);
+      return { r, company, distanceKm: d?.km ?? null };
+    }),
+  );
+
+  return withDistance.flatMap((entry) => {
+    if (!entry) return [];
+    const { r, company, distanceKm } = entry;
     return [
       {
         applicationId: r.applicationId,

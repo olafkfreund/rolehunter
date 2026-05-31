@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getJob, updateJobDescription } from "@/lib/repo/jobs";
+import { cacheJobFitScore, getJob, updateJobDescription } from "@/lib/repo/jobs";
 import { getJobDetail } from "@/lib/linkedin/client";
 import { listApplicationsWithJob } from "@/lib/repo/applications";
 import { getCompanyForJob } from "@/lib/repo/companies";
 import { getProfile } from "@/lib/repo/profile";
 import { getActiveCv } from "@/lib/repo/cv";
-import { haversineKm } from "@/lib/companies/geo";
+import {
+  resolveDistanceKm,
+  resolveWorkLocation,
+} from "@/lib/companies/work-location";
 import { computeFitReport } from "@/lib/jobs/fit-score";
 import type { JobListing, CvMaster } from "@/lib/db/schema";
 import type { CvJson } from "@/lib/llm";
@@ -18,6 +21,7 @@ import { FlashcardsPanel } from "@/components/flashcards-panel";
 import { JobActionBar } from "@/components/job-action-bar";
 import { CompanyPanel } from "@/components/company-panel";
 import { FitDashboard } from "@/components/fit-dashboard";
+import { OfficeMap } from "@/components/office-map";
 import { JobDescription } from "@/components/job-description";
 
 export const dynamic = "force-dynamic";
@@ -73,22 +77,11 @@ export default async function JobDetailPage({
     getActiveCv(),
   ]);
   const profileHasHomeAddress = !!profileForGeo.homeLat && !!profileForGeo.homeLng;
-  let initialDistanceKm: number | null = null;
-  if (
-    company?.hqLat != null &&
-    company?.hqLng != null &&
-    profileForGeo.homeLat != null &&
-    profileForGeo.homeLng != null
-  ) {
-    initialDistanceKm = haversineKm(
-      {
-        lat: profileForGeo.homeLat,
-        lng: profileForGeo.homeLng,
-        displayName: "",
-      },
-      { lat: company.hqLat, lng: company.hqLng, displayName: "" },
-    );
-  }
+  const resolvedDistance = company
+    ? await resolveDistanceKm(company, profileForGeo)
+    : null;
+  const initialDistanceKm = resolvedDistance?.km ?? null;
+  const workLocation = company ? await resolveWorkLocation(company, profileForGeo) : null;
 
   return (
     <div className="space-y-6">
@@ -141,14 +134,22 @@ export default async function JobDetailPage({
         </div>
       </header>
 
-      <FitDashboard
-        report={await computeFitReport(
+      <FitDashboard report={await (async () => {
+        const r = await computeFitReport(
           job,
           (activeCv?.parsedJson ?? null) as CvJson | null,
           company,
           profileForGeo,
-        )}
-      />
+        );
+        // Cache the overall score so /jobs can show a FIT chip per row
+        // without recomputing. Only writes when the value changed.
+        const cached: number | null =
+          r.overall.score >= 0 && Number.isFinite(r.overall.score) ? r.overall.score : null;
+        if (cached !== job.fitOverallScore) {
+          await cacheJobFitScore(job.id, cached).catch(() => {});
+        }
+        return r;
+      })()} />
 
       <CompanyPanel
         jobId={job.id}
@@ -156,6 +157,30 @@ export default async function JobDetailPage({
         initialDistanceKm={initialDistanceKm}
         profileHasHomeAddress={profileHasHomeAddress}
       />
+
+      {workLocation && (
+        <section className="space-y-2">
+          <div className="flex items-baseline justify-between gap-2 flex-wrap">
+            <div className="section-label">map · {workLocation.label}</div>
+            {resolvedDistance && (
+              <span className="text-[11px] font-mono text-[var(--fg-3)]">
+                {Math.round(resolvedDistance.km).toLocaleString()} km from your home
+                {resolvedDistance.source === "office-match-by-token" && " (city-matched)"}
+                {resolvedDistance.source === "hq-fallback" &&
+                  workLocation.office === null &&
+                  " (HQ — no office in your area)"}
+              </span>
+            )}
+          </div>
+          <OfficeMap
+            lat={workLocation.point.lat}
+            lng={workLocation.point.lng}
+            label={workLocation.label}
+            homeLat={profileForGeo.homeLat}
+            homeLng={profileForGeo.homeLng}
+          />
+        </section>
+      )}
 
       <MatchPanel jobId={job.id} />
 

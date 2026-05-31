@@ -15,12 +15,16 @@ import {
 } from "@/lib/repo/company-siblings";
 import { getCompanyFitScore } from "@/lib/companies/fit-score";
 import { getProfile } from "@/lib/repo/profile";
-import { haversineKm } from "@/lib/companies/geo";
+import {
+  resolveDistanceKm,
+  resolveWorkLocation,
+} from "@/lib/companies/work-location";
 import type { Company } from "@/lib/db/schema";
 import { CompanyCompareDrawer } from "@/components/company-compare-drawer";
 import { CompanySiblingPanels } from "@/components/company-sibling-panels";
 import { CompanyCompareApplications } from "@/components/company-compare-applications";
 import { CompanyLogo } from "@/components/company-logo";
+import { OfficeMap } from "@/components/office-map";
 import { listApplicationCompanies } from "@/lib/companies/compare";
 
 export const dynamic = "force-dynamic";
@@ -79,19 +83,11 @@ export default async function CompanyDetailPage({
     (r) => r.company.id !== company.id,
   );
 
-  // Distance from home if both points known
-  let distanceKm: number | null = null;
-  if (
-    company.hqLat != null &&
-    company.hqLng != null &&
-    profile.homeLat != null &&
-    profile.homeLng != null
-  ) {
-    distanceKm = haversineKm(
-      { lat: profile.homeLat, lng: profile.homeLng, displayName: "" },
-      { lat: company.hqLat, lng: company.hqLng, displayName: "" },
-    );
-  }
+  // Distance from home — uses the right office (city-matched > closest >
+  // HQ fallback) rather than always defaulting to HQ.
+  const resolvedDistance = await resolveDistanceKm(company, profile);
+  const distanceKm = resolvedDistance?.km ?? null;
+  const workLocation = await resolveWorkLocation(company, profile);
 
   const compareCandidates = otherCompanies.filter((c) => c.id !== company.id);
 
@@ -158,6 +154,30 @@ export default async function CompanyDetailPage({
       <section className="rise" data-delay="2">
         <ChipStrip company={company} distanceKm={distanceKm} />
       </section>
+
+      {workLocation && (
+        <section className="rise space-y-2" data-delay="2">
+          <div className="flex items-baseline justify-between gap-2 flex-wrap">
+            <div className="section-label">map · {workLocation.label}</div>
+            {resolvedDistance && (
+              <span className="text-[11px] font-mono text-[var(--fg-3)]">
+                {Math.round(resolvedDistance.km).toLocaleString()} km from your home
+                {resolvedDistance.source === "office-match-by-token" && " (city-matched)"}
+                {resolvedDistance.source === "hq-fallback" &&
+                  workLocation.office === null &&
+                  " (HQ — no office in your area)"}
+              </span>
+            )}
+          </div>
+          <OfficeMap
+            lat={workLocation.point.lat}
+            lng={workLocation.point.lng}
+            label={workLocation.label}
+            homeLat={profile.homeLat}
+            homeLng={profile.homeLng}
+          />
+        </section>
+      )}
 
       {company.summary && (
         <section className="rise" data-delay="3">

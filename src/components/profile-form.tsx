@@ -6,7 +6,7 @@ import type { Profile } from "@/lib/db/schema";
 import type { Provider } from "@/lib/llm/types";
 import { ProviderToggle } from "./provider-toggle";
 import { CulturePrefs } from "./culture-prefs";
-import { CULTURE_KEYWORDS } from "@/lib/jobs/fit-score";
+import { CULTURE_KEYWORDS } from "@/lib/jobs/culture-keywords";
 
 const input =
   "w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]";
