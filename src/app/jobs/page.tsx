@@ -14,7 +14,7 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 const VALID_BANDS = ["all", "top", "stretch", "pass", "unscored"] as const;
-const VALID_SORTS = ["date", "score", "fit"] as const;
+const VALID_SORTS = ["date", "score", "fit", "distance"] as const;
 
 function parseBand(input: string | string[] | undefined): ScoreBand {
   const raw = Array.isArray(input) ? input[0] : input;
@@ -78,6 +78,7 @@ export default async function JobsPage({
   const sortChips: { id: SortMode; label: string; hint: string }[] = [
     { id: "score", label: "match score", hint: "LLM CV-match (default)" },
     { id: "fit", label: "fit score", hint: "Local 5-dim role-fit dashboard" },
+    { id: "distance", label: "closest", hint: "Straight-line km from your home" },
     { id: "date", label: "newest", hint: "Most recently ingested" },
   ];
 

@@ -152,6 +152,17 @@ export function JobList({ jobs }: { jobs: JobListing[] }) {
                       <span className="mono">{job.fitOverallScore}</span>
                     </span>
                   )}
+                  {job.distanceKm !== null && job.distanceKm !== undefined && (
+                    <span
+                      className="chip"
+                      title="Straight-line distance from your home to the resolved work location (city-matched office > closest office > HQ). Updates when you open the role."
+                    >
+                      <span className="mono">🚊</span>
+                      <span className="mono">
+                        {job.distanceKm.toLocaleString()} km
+                      </span>
+                    </span>
+                  )}
                   {sources.map((s, i) => (
                     <span key={s} className="chip">
                       <span className="dot" style={{ background: i === 0 ? "var(--accent)" : "var(--fg-4)" }} />
