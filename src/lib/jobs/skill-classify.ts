@@ -10,16 +10,23 @@
 import { extractTechTokens } from "@/lib/tech-tokens";
 
 export type SkillClass = "matched" | "partial" | "missing";
-export type SkillEvidence = "cv" | "portfolio";
+export type SkillEvidence = "cv" | "portfolio" | "override";
 
 export interface ClassifiedSkill {
   token: string; // the JD-side label
   class: SkillClass;
   cvMatch: string | null; // what CV/portfolio term we matched against, if any
-  /** Where the proof came from — CV vs portfolio repo/project. */
+  /** Where the proof came from — CV, portfolio, or a user override. */
   evidence?: SkillEvidence;
   /** When evidence is "portfolio", the project title that surfaced the token. */
   portfolioProject?: string;
+  /** True when the result was forced by a user override. */
+  overridden?: boolean;
+}
+
+export interface SkillOverridesInput {
+  matched?: string[];
+  missing?: string[];
 }
 
 // Token families: a hit on any sibling counts as a "partial" match for the
@@ -92,11 +99,24 @@ export function classifyJobSkills(
   cvSkills: string[] | undefined,
   jobTitle = "",
   portfolio: PortfolioSkillContext[] = [],
+  overrides: SkillOverridesInput = {},
 ): ClassifyResult {
   // Title carries decisive signal ("Senior Kubernetes engineer") that the
   // description often re-iterates — scan both.
   const jobTokens = extractTechTokens(`${jobTitle}\n${jobDescription}`);
   const cvLower = new Set((cvSkills ?? []).map(normalizeCvSkill));
+
+  // User overrides applied AFTER everything else. Lowercase canonical.
+  const overrideMatched = new Set(
+    (overrides.matched ?? [])
+      .map((s) => (typeof s === "string" ? normalizeCvSkill(s) : ""))
+      .filter((s) => s.length > 0),
+  );
+  const overrideMissing = new Set(
+    (overrides.missing ?? [])
+      .map((s) => (typeof s === "string" ? normalizeCvSkill(s) : ""))
+      .filter((s) => s.length > 0),
+  );
 
   // Portfolio tokens → project. Lowercase key for matching; keep the
   // project title so evidence can render "matched via <project>".
@@ -121,6 +141,28 @@ export function classifyJobSkills(
 
   const classified: ClassifiedSkill[] = jobTokens.map((token) => {
     const lower = token.toLowerCase();
+
+    // User overrides win over everything else. Token comparison is on the
+    // normalized lowercase form so "Java" / "java" / "JAVA" all flip with
+    // one click.
+    if (overrideMatched.has(lower)) {
+      return {
+        token,
+        class: "matched",
+        cvMatch: lower,
+        evidence: "override",
+        overridden: true,
+      };
+    }
+    if (overrideMissing.has(lower)) {
+      return {
+        token,
+        class: "missing",
+        cvMatch: null,
+        evidence: "override",
+        overridden: true,
+      };
+    }
 
     // CV exact match
     if (cvLower.has(lower)) {

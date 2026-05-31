@@ -91,6 +91,14 @@ export const profile = pgTable("profile", {
   maxCommuteMinutes: smallint("max_commute_minutes"),
   preferredTransportMode: varchar("preferred_transport_mode", { length: 16 }), // car|transit|bike|walk|any
   benefitPriorities: jsonb("benefit_priorities").notNull().default([]),
+  // v3.2 — per-user skill overrides for the role-fit dashboard chips.
+  // { matched: lowercase-tokens, missing: lowercase-tokens } applied by the
+  // skill classifier AFTER CV + portfolio resolution. Clickable from the
+  // /jobs/[id] fit dashboard.
+  skillOverrides: jsonb("skill_overrides")
+    .$type<{ matched: string[]; missing: string[] }>()
+    .notNull()
+    .default({ matched: [], missing: [] }),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
