@@ -9,6 +9,7 @@ import type { Company, JobListing, Profile } from "@/lib/db/schema";
 import type { CvJson } from "@/lib/llm";
 import { classifyJobSkills, type ClassifyResult } from "./skill-classify";
 import { loadPortfolioSkillContext } from "./portfolio-skills";
+import { getSkillOverrides } from "@/lib/repo/skill-overrides";
 import { convertCurrency, SUPPORTED_BASES } from "@/lib/fx";
 import { resolveWorkLocation } from "@/lib/companies/work-location";
 import type { OfficePickResult } from "@/lib/companies/pick-office";
@@ -530,11 +531,19 @@ export async function computeFitReport(
   } catch {
     portfolioContext = { contexts: [], projectCount: 0 };
   }
+  // User-supplied skill overrides win over CV/portfolio resolution.
+  let overrides: Awaited<ReturnType<typeof getSkillOverrides>>;
+  try {
+    overrides = await getSkillOverrides();
+  } catch {
+    overrides = { matched: [], missing: [] };
+  }
   const skills = classifyJobSkills(
     job.description,
     cv?.skills,
     job.title,
     portfolioContext.contexts,
+    overrides,
   );
   const dimensions: FitDimension[] = [
     scoreSkills(skills),
