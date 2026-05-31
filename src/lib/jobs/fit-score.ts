@@ -9,6 +9,11 @@ import type { Company, JobListing, Profile } from "@/lib/db/schema";
 import type { CvJson } from "@/lib/llm";
 import { classifyJobSkills, type ClassifyResult } from "./skill-classify";
 import { convertCurrency, SUPPORTED_BASES } from "@/lib/fx";
+import {
+  fetchCommuteEstimate,
+  profileModeToGoogle,
+  type CommuteEstimate,
+} from "@/lib/companies/commute";
 
 export type Band = "top" | "stretch" | "pass" | "n/a";
 
@@ -441,13 +446,12 @@ async function scoreCompensation(
   };
 }
 
-function scoreLogistics(
+async function scoreLogistics(
   job: JobListing,
   company: Company | null,
   profile: Profile | null,
-): FitDimension {
+): Promise<FitDimension> {
   const evidence: string[] = [];
-  // Detect remote/hybrid/onsite from the JD; if remote-first there's no commute concern.
   const jd = `${job.title}\n${job.description.slice(0, 4_000)}\n${job.location ?? ""}`;
   const remoteFirst = /\b(remote[- ]first|fully remote|100% remote|wfh)\b/i.test(jd);
   const hybrid = /\bhybrid\b/i.test(jd);
@@ -458,7 +462,6 @@ function scoreLogistics(
     return { key: "logistics", label: "Logistics", score: 95, band: "top", evidence };
   }
 
-  // Need home + HQ coords to score commute
   const haveHome = profile?.homeLat != null && profile?.homeLng != null;
   const haveHq = company?.hqLat != null && company?.hqLng != null;
   if (!haveHome) {
@@ -470,7 +473,7 @@ function scoreLogistics(
     return { key: "logistics", label: "Logistics", score: -1, band: "n/a", evidence };
   }
 
-  // Haversine distance (km) — copied inline to avoid the geo helper dependency loop
+  // Haversine fallback (inline; no helper dep loop)
   const R = 6371;
   const toRad = (d: number) => (d * Math.PI) / 180;
   const a = { lat: profile!.homeLat!, lng: profile!.homeLng! };
@@ -482,20 +485,64 @@ function scoreLogistics(
     Math.sin(dLng / 2) ** 2 * Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat));
   const km = 2 * R * Math.asin(Math.sqrt(h));
 
+  // Real commute via Google Maps Distance Matrix when GOOGLE_MAPS_API_KEY is
+  // set. Otherwise fall back to the haversine approximation with the same
+  // banding as before.
+  const mode = profileModeToGoogle(profile?.preferredTransportMode ?? "car");
+  let commute: CommuteEstimate | null = null;
+  try {
+    commute = await fetchCommuteEstimate(a, b, mode);
+  } catch {
+    commute = null;
+  }
+
+  if (commute) {
+    const mins = commute.durationMinutes;
+    const cap = profile?.maxCommuteMinutes ?? null;
+    let score: number;
+    if (cap !== null && mins > cap) {
+      score = 15; // hard cap blown
+      evidence.push(
+        `commute ${mins}min via ${mode} — over your ${cap}min cap (-)`,
+      );
+    } else if (mins <= 20) score = 95;
+    else if (mins <= 40) score = 85;
+    else if (mins <= 60) score = 70;
+    else if (mins <= 90) score = 50;
+    else if (mins <= 120) score = 30;
+    else score = 15;
+
+    if (cap === null || mins <= cap) {
+      evidence.push(`commute ${mins}min via ${mode} · ${Math.round(commute.distanceKm)} km`);
+    }
+    if (commute.costEstimateUsd !== null) {
+      evidence.push(
+        `≈ $${commute.costEstimateUsd.toLocaleString()}/mo commute cost (rough, 22 working days)`,
+      );
+    }
+    if (onsiteOnly) {
+      score = Math.max(0, score - 10);
+      evidence.push("Onsite — no remote flex");
+    } else if (hybrid) {
+      evidence.push("Hybrid — fewer days of this commute per week");
+    }
+    return { key: "logistics", label: "Logistics", score, band: bandFor(score), evidence };
+  }
+
+  // Haversine fallback path
   let score: number;
   if (km <= 10) score = 95;
   else if (km <= 30) score = 85;
-  else if (km <= 80) score = 70; // commutable
-  else if (km <= 200) score = 50; // long but possible
-  else if (km <= 1000) score = 25; // would require relocation
+  else if (km <= 80) score = 70;
+  else if (km <= 200) score = 50;
+  else if (km <= 1000) score = 25;
   else score = 10;
-
   if (onsiteOnly) score = Math.max(0, score - 10);
-  if (hybrid) evidence.push(`Hybrid — ${Math.round(km).toLocaleString()} km from your home`);
-  else if (onsiteOnly)
-    evidence.push(`Onsite — ${Math.round(km).toLocaleString()} km from your home`);
-  else evidence.push(`${Math.round(km).toLocaleString()} km from your home`);
-
+  evidence.push(
+    `${Math.round(km).toLocaleString()} km from your home (straight-line; set GOOGLE_MAPS_API_KEY for real commute time + cost)`,
+  );
+  if (hybrid) evidence.push("Hybrid — fewer in-office days reduce commute drag");
+  else if (onsiteOnly) evidence.push("Onsite — no remote flex");
   return { key: "logistics", label: "Logistics", score, band: bandFor(score), evidence };
 }
 
@@ -515,7 +562,7 @@ export async function computeFitReport(
     scoreExperience(job, cv),
     scoreCulture(job, profile),
     await scoreCompensation(job, profile),
-    scoreLogistics(job, company, profile),
+    await scoreLogistics(job, company, profile),
   ];
 
   // Overall: weighted average of dimensions that scored (score >= 0).
