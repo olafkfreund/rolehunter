@@ -17,6 +17,7 @@ import {
   SYSTEM_LINKEDIN_SEO,
   SYSTEM_MATCH,
   SYSTEM_REWRITE_CV,
+  SYSTEM_REWRITE_SECTION,
 } from "./prompts";
 import type {
   CoverLetterInput,
@@ -35,6 +36,8 @@ import type {
   LlmProvider,
   MatchResult,
   RewriteResult,
+  RewriteSectionInput,
+  RewriteSectionResult,
 } from "./types";
 
 let client: OpenAI | null = null;
@@ -155,4 +158,24 @@ export const openaiProvider: LlmProvider = {
       );
     }
   },
+
+  async rewriteSection(input: RewriteSectionInput): Promise<RewriteSectionResult> {
+    const user = [
+      `# Current CV (markdown):\n${input.cvMarkdown.slice(0, 12_000)}`,
+      `# Section to rewrite: ${input.section}`,
+      `# Guidance: ${input.guidance}`,
+      input.targetRole ? `# Target role: ${input.targetRole}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    const text = await call(SYSTEM_REWRITE_SECTION, user, 3000);
+    return { markdown: stripRewriteFences(text) };
+  },
 };
+
+function stripRewriteFences(text: string): string {
+  let t = text.trim();
+  const fenced = t.match(/^```(?:markdown|md)?\s*\n([\s\S]*?)\n```\s*$/);
+  if (fenced) t = fenced[1].trim();
+  return t;
+}

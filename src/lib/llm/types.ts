@@ -153,6 +153,17 @@ export interface LearningResourcesResult {
   resources: LearningResource[];
 }
 
+export interface RewriteSectionInput {
+  cvMarkdown: string;
+  section: "summary" | "skills" | "experience" | "education" | "all";
+  guidance: string;
+  targetRole?: string;
+}
+
+export interface RewriteSectionResult {
+  markdown: string;
+}
+
 export interface LlmProvider {
   name: Provider;
   extractCv(rawText: string): Promise<CvJson>;
@@ -165,4 +176,5 @@ export interface LlmProvider {
   importLinkedInPdf(rawText: string): Promise<LinkedInImportResult>;
   canonicalizeGaps(input: GapClusterMember[]): Promise<GapCanonicalizeResult>;
   generateLearningResources(skill: string): Promise<LearningResourcesResult>;
+  rewriteSection(input: RewriteSectionInput): Promise<RewriteSectionResult>;
 }
