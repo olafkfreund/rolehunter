@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listCompanies } from "@/lib/repo/companies";
+import { CompanyLogo } from "@/components/company-logo";
 
 export const dynamic = "force-dynamic";
 
@@ -68,18 +69,7 @@ export default async function CompaniesPage({
                 className="card p-4 block hover:bg-[var(--bg-elev-2)] transition-colors group"
               >
                 <div className="flex items-start gap-3">
-                  {c.logoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={c.logoUrl}
-                      alt=""
-                      className="w-10 h-10 rounded-md border border-[var(--border)] bg-[var(--bg)] object-contain p-1 shrink-0"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-md border border-[var(--border)] bg-[var(--bg)] flex items-center justify-center font-mono text-[var(--fg-3)] shrink-0">
-                      {c.name.slice(0, 1).toUpperCase()}
-                    </div>
-                  )}
+                  <CompanyLogo src={c.logoUrl} name={c.name} />
                   <div className="min-w-0 flex-1">
                     <div className="font-medium text-[14px] tracking-tight truncate group-hover:text-[var(--accent)] transition-colors">
                       {c.name}
