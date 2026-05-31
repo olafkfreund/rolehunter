@@ -2,6 +2,8 @@ import { desc, eq, ilike, or, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import type { Company, JobListing } from "@/lib/db/schema";
 import { enrichCompanyByName } from "@/lib/companies/enrich";
+import { fetchCompanyNews } from "@/lib/companies/sources/news-rss";
+import { upsertNewsItem } from "./company-siblings";
 
 const FRESH_MS = 7 * 24 * 60 * 60 * 1000; // a company snapshot is "fresh" for 7 days
 
@@ -118,6 +120,17 @@ export async function enrichAndPersist(
       .update(schema.jobListings)
       .set({ companyId: updated.id })
       .where(eq(schema.jobListings.id, opts.jobIdToBackfill));
+  }
+
+  // Fan out to free sibling-table enrichers. Each is best-effort; failures
+  // don't block the enrich call.
+  try {
+    const newsItems = await fetchCompanyNews(updated.name, { limit: 10 });
+    for (const n of newsItems) {
+      await upsertNewsItem(updated.id, n);
+    }
+  } catch {
+    // ignore — news is bonus signal
   }
 
   return updated;
