@@ -185,22 +185,120 @@ function scoreCulture(job: JobListing): FitDimension {
   };
 }
 
-function scoreCompensation(job: JobListing): FitDimension {
+// Normalise a band to annual-equivalent using rough single-earner heuristics.
+// We document the conversion in the evidence so the user knows it's approximate.
+const HOURS_PER_DAY = 8;
+const DAYS_PER_MONTH = 22;
+const MONTHS_PER_YEAR = 12;
+
+function toAnnual(amount: number, period: string): number {
+  switch (period) {
+    case "hourly":
+      return amount * HOURS_PER_DAY * DAYS_PER_MONTH * MONTHS_PER_YEAR;
+    case "daily":
+      return amount * DAYS_PER_MONTH * MONTHS_PER_YEAR;
+    case "monthly":
+      return amount * MONTHS_PER_YEAR;
+    case "annual":
+    default:
+      return amount;
+  }
+}
+
+// Infer the period of a JD-posted band from the magnitude when the JD doesn't
+// say explicitly. e.g. an hourly contractor rate vs an annual salary.
+function inferPeriodFromAmount(maxAmount: number): string {
+  if (maxAmount < 500) return "hourly";
+  if (maxAmount < 5_000) return "daily";
+  if (maxAmount < 30_000) return "monthly";
+  return "annual";
+}
+
+function scoreCompensation(job: JobListing, profile: Profile | null): FitDimension {
   const evidence: string[] = [];
+
   if (!job.salaryMin && !job.salaryMax) {
     evidence.push("No salary band in JD — request transparency before applying.");
     return { key: "comp", label: "Compensation", score: -1, band: "n/a", evidence };
   }
-  const lo = job.salaryMin ?? 0;
-  const hi = job.salaryMax ?? lo;
-  const cur = job.salaryCurrency ?? "";
+
+  const jdLo = job.salaryMin ?? job.salaryMax ?? 0;
+  const jdHi = job.salaryMax ?? job.salaryMin ?? 0;
+  const jdCur = (job.salaryCurrency ?? "").toUpperCase();
+
+  // Surface the raw JD band first — useful info even without scoring.
   evidence.push(
-    `JD posts ${cur} ${lo.toLocaleString()}${hi !== lo ? "–" + hi.toLocaleString() : ""}`,
+    `JD posts ${jdCur} ${jdLo.toLocaleString()}${jdHi !== jdLo ? "–" + jdHi.toLocaleString() : ""}`,
   );
-  evidence.push("Profile target not yet captured — add it in /settings/comp (follow-up slice).");
-  // Without a target band we can't score; return -1 so the dashboard renders "n/a"
-  // but the evidence row still shows what the JD posted.
-  return { key: "comp", label: "Compensation", score: -1, band: "n/a", evidence };
+
+  const tMin = profile?.salaryTargetMin;
+  const tMax = profile?.salaryTargetMax;
+  if (tMin == null && tMax == null) {
+    evidence.push("Set your target band in /profile to score this dimension.");
+    return { key: "comp", label: "Compensation", score: -1, band: "n/a", evidence };
+  }
+
+  const tCur = (profile?.salaryTargetCurrency ?? "").toUpperCase();
+  if (tCur && jdCur && tCur !== jdCur) {
+    evidence.push(
+      `Currency mismatch — JD ${jdCur} vs target ${tCur}. Convert manually for now (FX conversion is a follow-up).`,
+    );
+    return { key: "comp", label: "Compensation", score: -1, band: "n/a", evidence };
+  }
+
+  // Normalise both sides to annual-equivalent. JD period: if not stored on the
+  // listing, guess from the magnitude (most senior tech salaries land >30k/yr).
+  const targetPeriod = profile?.salaryTargetPeriod ?? "annual";
+  const jdPeriod = inferPeriodFromAmount(jdHi);
+
+  const jdLoAnnual = toAnnual(jdLo, jdPeriod);
+  const jdHiAnnual = toAnnual(jdHi, jdPeriod);
+  const targetLoAnnual = toAnnual(tMin ?? tMax ?? 0, targetPeriod);
+  const targetHiAnnual = toAnnual(tMax ?? tMin ?? 0, targetPeriod);
+
+  if (jdPeriod !== "annual" || targetPeriod !== "annual") {
+    evidence.push(
+      `Normalised to annual: JD ≈ ${jdLoAnnual.toLocaleString()}–${jdHiAnnual.toLocaleString()} ${jdCur}, target ≈ ${targetLoAnnual.toLocaleString()}–${targetHiAnnual.toLocaleString()} ${tCur || jdCur}`,
+    );
+  }
+
+  // Scoring:
+  //   100 if JD floor >= target floor (JD strictly meets/exceeds)
+  //    80 if JD ceiling >= target ceiling but floor < target floor
+  //    60 if mid-point of JD >= mid-point of target
+  //    30 if JD ceiling < target floor but within 25% gap
+  //     0 if JD ceiling < 75% of target floor
+  let score: number;
+  if (jdLoAnnual >= targetLoAnnual) {
+    score = 100;
+    evidence.push(`✓ JD floor meets or exceeds your target floor.`);
+  } else if (jdHiAnnual >= targetHiAnnual) {
+    score = 80;
+    evidence.push(
+      `Top end meets your target ceiling; floor is below your target — leverage in negotiation.`,
+    );
+  } else {
+    const jdMid = (jdLoAnnual + jdHiAnnual) / 2;
+    const targetMid = (targetLoAnnual + targetHiAnnual) / 2;
+    if (jdMid >= targetMid) {
+      score = 60;
+      evidence.push("Midpoints match; full target requires top-of-band offer.");
+    } else if (jdHiAnnual >= targetLoAnnual * 0.75) {
+      score = 30;
+      evidence.push("JD posts below your target. Possible only with hard negotiation.");
+    } else {
+      score = 0;
+      evidence.push("JD is well below your target — likely not worth applying for comp.");
+    }
+  }
+
+  return {
+    key: "comp",
+    label: "Compensation",
+    score,
+    band: bandFor(score),
+    evidence,
+  };
 }
 
 function scoreLogistics(
@@ -276,7 +374,7 @@ export function computeFitReport(
     scoreSkills(skills),
     scoreExperience(job, cv),
     scoreCulture(job),
-    scoreCompensation(job),
+    scoreCompensation(job, profile),
     scoreLogistics(job, company, profile),
   ];
 

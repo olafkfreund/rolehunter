@@ -19,6 +19,19 @@ const patchSchema = z.object({
   linkedinAbout: z.string().max(8000).optional().nullable(),
   avatarPath: z.string().optional().nullable(),
   homeAddress: z.string().max(500).optional().nullable(),
+  salaryTargetMin: z.coerce.number().int().min(0).max(100_000_000).optional().nullable(),
+  salaryTargetMax: z.coerce.number().int().min(0).max(100_000_000).optional().nullable(),
+  salaryTargetCurrency: z
+    .string()
+    .trim()
+    .max(8)
+    .regex(/^[A-Z]{0,8}$/i, "Currency must be ASCII letters")
+    .optional()
+    .nullable(),
+  salaryTargetPeriod: z
+    .enum(["annual", "monthly", "daily", "hourly"])
+    .optional()
+    .nullable(),
 });
 
 export async function PATCH(req: Request) {
@@ -51,6 +64,25 @@ export async function PATCH(req: Request) {
         // Keep the address text even if geocoding failed.
       }
     }
+  }
+
+  // Normalise empty strings on the salary fields to nulls (form sends "" not undefined)
+  if (patch.salaryTargetMin === 0 && data.salaryTargetMin === null) patch.salaryTargetMin = null;
+  if (patch.salaryTargetMax === 0 && data.salaryTargetMax === null) patch.salaryTargetMax = null;
+  if (typeof patch.salaryTargetCurrency === "string") {
+    patch.salaryTargetCurrency = patch.salaryTargetCurrency.trim().toUpperCase() || null;
+  }
+
+  // If a band is provided ensure min <= max; swap rather than reject so the
+  // user doesn't have to know which field is which.
+  if (
+    typeof patch.salaryTargetMin === "number" &&
+    typeof patch.salaryTargetMax === "number" &&
+    patch.salaryTargetMin > patch.salaryTargetMax
+  ) {
+    const a = patch.salaryTargetMin;
+    patch.salaryTargetMin = patch.salaryTargetMax;
+    patch.salaryTargetMax = a;
   }
 
   const updated = await updateProfile(patch);
