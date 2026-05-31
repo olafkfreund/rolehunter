@@ -6,10 +6,13 @@
 
 import { lookupCompanyOnWikidata } from "./sources/wikidata";
 import { clearbitLogoUrl } from "./sources/clearbit";
+import { geocode } from "./geo";
 
 export interface EnrichmentPayload {
   website: string | null;
   headquarters: string | null;
+  hqLat: number | null;
+  hqLng: number | null;
   foundedYear: number | null;
   summary: string;
   logoUrl: string | null;
@@ -23,10 +26,28 @@ export interface EnrichmentPayload {
   raw: Record<string, unknown>;
 }
 
+// HQ strings that are too broad to geocode usefully — Nominatim returns the
+// country centroid which makes "distance from home" nonsense. Skip them.
+const TOO_BROAD = new Set([
+  "united states",
+  "usa",
+  "us",
+  "united kingdom",
+  "uk",
+  "europe",
+  "asia",
+  "north america",
+  "worldwide",
+  "global",
+  "remote",
+]);
+
 export async function enrichCompanyByName(name: string): Promise<EnrichmentPayload> {
   const payload: EnrichmentPayload = {
     website: null,
     headquarters: null,
+    hqLat: null,
+    hqLng: null,
     foundedYear: null,
     summary: "",
     logoUrl: null,
@@ -61,6 +82,30 @@ export async function enrichCompanyByName(name: string): Promise<EnrichmentPaylo
   // Clearbit logo (pure URL builder; the URL may 404 on actual fetch by the
   // browser, but that's fine — img tag will hide and we fall back to initials)
   payload.logoUrl = clearbitLogoUrl(payload.website);
+
+  // Geocode HQ via Nominatim (free). Skip if too broad / too short to be
+  // useful — country-centroid coords make distance meaningless.
+  if (payload.headquarters) {
+    const hq = payload.headquarters.trim();
+    const norm = hq.toLowerCase();
+    if (hq.length >= 3 && !TOO_BROAD.has(norm)) {
+      try {
+        const point = await geocode(hq);
+        if (point) {
+          payload.hqLat = point.lat;
+          payload.hqLng = point.lng;
+          payload.raw.hqGeocoded = {
+            via: "nominatim",
+            displayName: point.displayName,
+          };
+        }
+      } catch (e) {
+        payload.raw.hqGeocodeError = e instanceof Error ? e.message : String(e);
+      }
+    } else {
+      payload.raw.hqGeocodeSkipped = `too broad: '${hq}'`;
+    }
+  }
 
   return payload;
 }

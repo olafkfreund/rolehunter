@@ -80,11 +80,15 @@ export async function enrichAndPersist(
 
   const payload = await enrichCompanyByName(company.name);
 
+  const hqCoordsResolved = payload.hqLat != null && payload.hqLng != null;
   const [updated] = await db
     .update(schema.companies)
     .set({
       website: payload.website,
       headquarters: payload.headquarters,
+      hqLat: payload.hqLat,
+      hqLng: payload.hqLng,
+      hqGeocodedAt: hqCoordsResolved ? new Date() : null,
       foundedYear: payload.foundedYear,
       summary: payload.summary,
       logoUrl: payload.logoUrl,
@@ -114,8 +118,14 @@ export async function enrichAndPersist(
 /**
  * High-level: given a job listing, ensure its companyId is set and the
  * company is enriched. Returns the (possibly newly enriched) company.
+ *
+ * Pass `force: true` to re-enrich even if the existing row is within the
+ * 7-day cache window (used by the Refresh button).
  */
-export async function ensureCompanyForJob(jobId: number): Promise<Company | null> {
+export async function ensureCompanyForJob(
+  jobId: number,
+  opts: { force?: boolean } = {},
+): Promise<Company | null> {
   const db = getDb();
   const jobRows = await db
     .select({
@@ -143,5 +153,5 @@ export async function ensureCompanyForJob(jobId: number): Promise<Company | null
       .where(eq(schema.jobListings.id, jobId));
   }
 
-  return enrichAndPersist(companyRecord.id);
+  return enrichAndPersist(companyRecord.id, { force: opts.force });
 }

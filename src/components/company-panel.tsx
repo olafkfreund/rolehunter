@@ -33,7 +33,7 @@ export function CompanyPanel({
       const res = await fetch("/api/companies/enrich", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId }),
+        body: JSON.stringify({ jobId, force: !!company?.enrichmentSyncedAt }),
       });
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;

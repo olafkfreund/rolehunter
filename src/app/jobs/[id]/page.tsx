@@ -66,12 +66,23 @@ export default async function JobDetailPage({
     getCompanyForJob(job.id),
     getProfile(),
   ]);
-  let initialDistanceKm: number | null = null;
-  // Note: we don't have HQ lat/lng cached yet (slice-2 follow-up); for now,
-  // only show distance once a future slice geocodes the company HQ.
-  // Keeping the prop wired so the panel "remembers" the state once it exists.
-  void haversineKm;
   const profileHasHomeAddress = !!profileForGeo.homeLat && !!profileForGeo.homeLng;
+  let initialDistanceKm: number | null = null;
+  if (
+    company?.hqLat != null &&
+    company?.hqLng != null &&
+    profileForGeo.homeLat != null &&
+    profileForGeo.homeLng != null
+  ) {
+    initialDistanceKm = haversineKm(
+      {
+        lat: profileForGeo.homeLat,
+        lng: profileForGeo.homeLng,
+        displayName: "",
+      },
+      { lat: company.hqLat, lng: company.hqLng, displayName: "" },
+    );
+  }
 
   return (
     <div className="space-y-6">
