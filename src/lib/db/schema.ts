@@ -487,3 +487,52 @@ export type SearchProfile = typeof searchProfiles.$inferSelect;
 export type SearchRun = typeof searchRuns.$inferSelect;
 export type SourceBudget = typeof sourceBudgets.$inferSelect;
 export type SourceQuotaDaily = typeof sourceQuotasDaily.$inferSelect;
+
+// ─── v3.1: portfolio knowledge graph ───────────────────────────────────────
+
+export const portfolioKindEnum = pgEnum("portfolio_kind", [
+  "github_repo",
+  "gitlab_repo",
+  "blog_post",
+  "website",
+  "obsidian_note",
+  "manual_project",
+  "manual_skill",
+  "manual_role",
+]);
+
+export const portfolioItems = pgTable(
+  "portfolio_items",
+  {
+    id: serial("id").primaryKey(),
+    kind: portfolioKindEnum("kind").notNull(),
+    /**
+     * Logical source key, e.g. "github:olafkfreund" or "gitlab:some-user".
+     * Combined with externalId to form the dedupe key for re-syncs.
+     */
+    sourceKey: text("source_key").notNull(),
+    externalId: text("external_id").notNull(),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    url: text("url"),
+    tech: jsonb("tech").notNull().default([]),
+    highlights: jsonb("highlights").notNull().default([]),
+    role: text("role"),
+    startedAt: timestamp("started_at"),
+    endedAt: timestamp("ended_at"),
+    stars: integer("stars"),
+    /** User-toggled visibility for matching. */
+    hidden: boolean("hidden").notNull().default(false),
+    rawJson: jsonb("raw_json"),
+    syncedAt: timestamp("synced_at").defaultNow().notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    uniq: uniqueIndex("portfolio_items_uniq_idx").on(t.sourceKey, t.externalId),
+    byKind: index("portfolio_items_kind_idx").on(t.kind),
+    bySynced: index("portfolio_items_synced_idx").on(t.syncedAt.desc()),
+  }),
+);
+
+export type PortfolioItem = typeof portfolioItems.$inferSelect;
