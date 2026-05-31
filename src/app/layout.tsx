@@ -47,6 +47,7 @@ const nav = [
 
 const overflow = [
   { href: "/settings", label: "Settings" },
+  { href: "/companies", label: "Companies" },
   { href: "/templates", label: "Templates" },
   { href: "/linkedin-seo", label: "LinkedIn SEO" },
 ];
