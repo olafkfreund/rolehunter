@@ -46,6 +46,32 @@ const patchSchema = z.object({
     .array(z.enum(CULTURE_KEYS as unknown as [string, ...string[]]))
     .max(CULTURE_KEYS.length)
     .optional(),
+  maxCommuteMinutes: z.coerce.number().int().min(0).max(600).optional().nullable(),
+  preferredTransportMode: z
+    .enum(["car", "transit", "bike", "walk", "any"])
+    .optional()
+    .nullable(),
+  benefitPriorities: z
+    .array(
+      z.enum([
+        "401k",
+        "pension",
+        "equity",
+        "bonus",
+        "health",
+        "dental",
+        "vision",
+        "pto",
+        "parental",
+        "stipend",
+        "wellness",
+        "learning",
+        "espp",
+        "commuter",
+      ]),
+    )
+    .max(20)
+    .optional(),
 });
 
 export async function PATCH(req: Request) {
