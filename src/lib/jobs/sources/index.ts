@@ -9,7 +9,9 @@
 
 import { createAdzunaAdapter } from "./adzuna";
 import { createApifyAdapter } from "./apify";
+import { createDiceMcpAdapter } from "./dice-mcp";
 import { createGreenhouseAdapter } from "./greenhouse";
+import { createIndeedMcpAdapter } from "./indeed-mcp";
 import { createJobSpyAdapter } from "./jobspy";
 import { createJSearchAdapter } from "./jsearch";
 import { createLeverAdapter } from "./lever";
@@ -32,9 +34,8 @@ export function ensureAdaptersRegistered(): void {
   register("lever", createLeverAdapter);
   register("workday", createWorkdayAdapter);
   register("apify", createApifyAdapter);
-  // v3.0 follow-up branches add:
-  //   register("indeed", createIndeedAdapter);
-  //   register("dice", createDiceAdapter);
+  register("indeed", createIndeedMcpAdapter);
+  register("dice", createDiceMcpAdapter);
 }
 
 // Re-exports for ergonomics — anything importing this module gets the full
