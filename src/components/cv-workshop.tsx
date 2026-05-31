@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { CvMaster } from "@/lib/db/schema";
+import { Markdown } from "@/components/markdown";
 
 type Tab = "ats" | "gaps" | "rewrite" | "templates";
 
@@ -181,9 +182,7 @@ function AtsPanel() {
           {report.llmSummary && (
             <div className="card p-4 space-y-2">
               <div className="section-label">llm review</div>
-              <div className="text-[12px] text-[var(--fg-2)] whitespace-pre-wrap leading-relaxed">
-                {report.llmSummary}
-              </div>
+              <Markdown>{report.llmSummary}</Markdown>
             </div>
           )}
         </>
@@ -306,9 +305,7 @@ function GapsPanel() {
           {result.reasoning && (
             <div className="card p-4 space-y-2">
               <div className="section-label">reasoning</div>
-              <div className="text-[12px] text-[var(--fg-3)] whitespace-pre-wrap leading-relaxed">
-                {result.reasoning}
-              </div>
+              <Markdown>{result.reasoning}</Markdown>
             </div>
           )}
         </>
@@ -398,12 +395,12 @@ function RewritePanel() {
               onClick={() => navigator.clipboard.writeText(result.rewritten)}
               className="btn text-[11px]"
             >
-              copy
+              copy raw markdown
             </button>
           </div>
-          <pre className="text-[12px] whitespace-pre-wrap font-sans text-[var(--fg-2)] leading-relaxed max-h-[50vh] overflow-y-auto">
-            {result.rewritten}
-          </pre>
+          <div className="max-h-[50vh] overflow-y-auto pr-1">
+            <Markdown>{result.rewritten}</Markdown>
+          </div>
         </div>
       )}
     </div>
