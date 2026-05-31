@@ -6,23 +6,42 @@ import type { JSearchJob } from "@/lib/jsearch/client";
 import type { LinkedInJob } from "@/lib/linkedin/client";
 
 export type ScoreBand = "top" | "stretch" | "pass" | "unscored" | "all";
+export type SortMode = "date" | "score" | "fit";
 
 export async function listJobs(
-  opts: { band?: ScoreBand; limit?: number } = {},
+  opts: {
+    band?: ScoreBand;
+    fitBand?: ScoreBand;
+    sort?: SortMode;
+    limit?: number;
+  } = {},
 ): Promise<JobListing[]> {
   const db = getDb();
   const band = opts.band ?? "all";
+  const fitBand = opts.fitBand ?? "all";
+  const sort = opts.sort ?? "score";
   const limit = opts.limit ?? 200;
 
-  let query = db
-    .select()
-    .from(schema.jobListings)
-    .orderBy(
+  let query = db.select().from(schema.jobListings).$dynamic();
+
+  if (sort === "fit") {
+    // Highest local fit first, NULLS LAST so unscored jobs sink to the
+    // bottom (they need a /jobs/[id] view to populate the cache).
+    query = query.orderBy(
+      sql`${schema.jobListings.fitOverallScore} DESC NULLS LAST`,
+      desc(schema.jobListings.fetchedAt),
+    );
+  } else if (sort === "date") {
+    query = query.orderBy(desc(schema.jobListings.fetchedAt));
+  } else {
+    // "score" — default. LLM topScore desc, NULLs sink.
+    query = query.orderBy(
       sql`COALESCE(${schema.jobListings.topScore}, -1) DESC`,
       desc(schema.jobListings.fetchedAt),
-    )
-    .$dynamic();
+    );
+  }
 
+  // LLM-match-score band filter (existing behavior)
   if (band === "top") {
     query = query.where(sql`${schema.jobListings.topScore} >= 70`);
   } else if (band === "stretch") {
@@ -37,6 +56,21 @@ export async function listJobs(
     query = query.where(sql`${schema.jobListings.topScore} IS NULL`);
   }
 
+  // Local-fit-score band filter
+  if (fitBand === "top") {
+    query = query.where(sql`${schema.jobListings.fitOverallScore} >= 70`);
+  } else if (fitBand === "stretch") {
+    query = query.where(
+      sql`${schema.jobListings.fitOverallScore} >= 50 AND ${schema.jobListings.fitOverallScore} < 70`,
+    );
+  } else if (fitBand === "pass") {
+    query = query.where(
+      sql`${schema.jobListings.fitOverallScore} IS NOT NULL AND ${schema.jobListings.fitOverallScore} < 50`,
+    );
+  } else if (fitBand === "unscored") {
+    query = query.where(sql`${schema.jobListings.fitOverallScore} IS NULL`);
+  }
+
   return query.limit(limit);
 }
 
@@ -48,6 +82,28 @@ export async function countJobsByBand(): Promise<Record<ScoreBand, number>> {
         WHEN top_score IS NULL THEN 'unscored'
         WHEN top_score >= 70 THEN 'top'
         WHEN top_score >= 50 THEN 'stretch'
+        ELSE 'pass'
+      END AS band,
+      COUNT(*)::int AS n
+    FROM job_listings
+    GROUP BY band
+  `);
+  const out: Record<ScoreBand, number> = { all: 0, top: 0, stretch: 0, pass: 0, unscored: 0 };
+  for (const r of rows.rows ?? []) {
+    out[r.band as ScoreBand] = Number(r.n);
+    out.all += Number(r.n);
+  }
+  return out;
+}
+
+export async function countJobsByFitBand(): Promise<Record<ScoreBand, number>> {
+  const db = getDb();
+  const rows = await db.execute<{ band: string; n: number }>(sql`
+    SELECT
+      CASE
+        WHEN fit_overall_score IS NULL THEN 'unscored'
+        WHEN fit_overall_score >= 70 THEN 'top'
+        WHEN fit_overall_score >= 50 THEN 'stretch'
         ELSE 'pass'
       END AS band,
       COUNT(*)::int AS n
