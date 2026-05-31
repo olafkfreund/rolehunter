@@ -11,6 +11,12 @@ const schema = z.object({
   ADZUNA_DEFAULT_COUNTRY: z
     .enum(["gb", "us", "au", "br", "ca", "de", "fr", "in", "it", "mx", "nl", "nz", "pl", "ru", "sg", "za"])
     .default("gb"),
+  // v3.0 Apify on-demand (#35)
+  APIFY_API_TOKEN: z.string().optional().default(""),
+  APIFY_LINKEDIN_ACTOR_ID: z.string().optional().default(""),
+  APIFY_GLASSDOOR_ACTOR_ID: z.string().optional().default(""),
+  APIFY_USD_PER_RUN_ESTIMATE: z.string().optional().default(""),
+  BUDGET_APIFY_USD_MONTHLY: z.coerce.number().min(0).default(5),
   DEFAULT_LLM_PROVIDER: z.enum(["claude", "gemini", "openai", "ollama"]).default("claude"),
   CLAUDE_MODEL: z.string().default("claude-sonnet-4-6"),
   GEMINI_MODEL: z.string().default("gemini-2.5-pro"),

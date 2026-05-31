@@ -8,6 +8,7 @@
 // doesn't crash the module load.
 
 import { createAdzunaAdapter } from "./adzuna";
+import { createApifyAdapter } from "./apify";
 import { createGreenhouseAdapter } from "./greenhouse";
 import { createJobSpyAdapter } from "./jobspy";
 import { createJSearchAdapter } from "./jsearch";
@@ -30,10 +31,10 @@ export function ensureAdaptersRegistered(): void {
   register("greenhouse", createGreenhouseAdapter);
   register("lever", createLeverAdapter);
   register("workday", createWorkdayAdapter);
+  register("apify", createApifyAdapter);
   // v3.0 follow-up branches add:
   //   register("indeed", createIndeedAdapter);
   //   register("dice", createDiceAdapter);
-  //   register("apify", createApifyAdapter);
 }
 
 // Re-exports for ergonomics — anything importing this module gets the full
