@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getProfile, updateProfile } from "@/lib/repo/profile";
 import { geocode } from "@/lib/companies/geo";
+import { CULTURE_KEYS } from "@/lib/jobs/fit-score";
 
 export async function GET() {
   const p = await getProfile();
@@ -32,6 +33,19 @@ const patchSchema = z.object({
     .enum(["annual", "monthly", "daily", "hourly"])
     .optional()
     .nullable(),
+  workModePreference: z
+    .enum(["remote", "hybrid", "onsite", "any"])
+    .optional()
+    .nullable(),
+  maxOfficeDaysPerWeek: z.coerce.number().int().min(0).max(7).optional().nullable(),
+  cultureLikes: z
+    .array(z.enum(CULTURE_KEYS as unknown as [string, ...string[]]))
+    .max(CULTURE_KEYS.length)
+    .optional(),
+  cultureAvoids: z
+    .array(z.enum(CULTURE_KEYS as unknown as [string, ...string[]]))
+    .max(CULTURE_KEYS.length)
+    .optional(),
 });
 
 export async function PATCH(req: Request) {
@@ -83,6 +97,21 @@ export async function PATCH(req: Request) {
     const a = patch.salaryTargetMin;
     patch.salaryTargetMin = patch.salaryTargetMax;
     patch.salaryTargetMax = a;
+  }
+
+  // De-conflict culture likes/avoids: if a key appears in both, drop it from
+  // both (treat as no-opinion). Keeps the UI honest if the user toggles a
+  // chip into both columns.
+  if (Array.isArray(patch.cultureLikes) && Array.isArray(patch.cultureAvoids)) {
+    const both = new Set(
+      (patch.cultureLikes as string[]).filter((k) =>
+        (patch.cultureAvoids as string[]).includes(k),
+      ),
+    );
+    if (both.size > 0) {
+      patch.cultureLikes = (patch.cultureLikes as string[]).filter((k) => !both.has(k));
+      patch.cultureAvoids = (patch.cultureAvoids as string[]).filter((k) => !both.has(k));
+    }
   }
 
   const updated = await updateProfile(patch);

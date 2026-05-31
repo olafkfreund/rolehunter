@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Profile } from "@/lib/db/schema";
 import type { Provider } from "@/lib/llm/types";
 import { ProviderToggle } from "./provider-toggle";
+import { CulturePrefs } from "./culture-prefs";
+import { CULTURE_KEYWORDS } from "@/lib/jobs/fit-score";
 
 const input =
   "w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]";
@@ -270,6 +272,64 @@ export function ProfileForm({ initial }: { initial: Profile }) {
             </select>
           </div>
         </div>
+      </section>
+
+      <section className="space-y-3 rounded-lg border border-[var(--border)] p-4">
+        <div className="flex items-baseline justify-between gap-2 flex-wrap">
+          <h3 className="font-semibold">Culture preferences</h3>
+          <span className="text-[11px] text-[var(--muted-foreground)] font-mono">
+            powers role-fit Culture scoring
+          </span>
+        </div>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Tell RoleHunter what you want, what you'd rather avoid, and your preferred work
+          mode. Roles get scored against your taste rather than a generic baseline.
+        </p>
+        <CulturePrefs
+          keywords={CULTURE_KEYWORDS.map((c) => ({
+            key: c.key,
+            label: c.label,
+            positive: c.positive,
+          }))}
+          initialLikes={
+            Array.isArray((state as { cultureLikes?: unknown }).cultureLikes)
+              ? ((state as { cultureLikes: string[] }).cultureLikes ?? [])
+              : []
+          }
+          initialAvoids={
+            Array.isArray((state as { cultureAvoids?: unknown }).cultureAvoids)
+              ? ((state as { cultureAvoids: string[] }).cultureAvoids ?? [])
+              : []
+          }
+          initialWorkMode={
+            ((state as { workModePreference?: string | null }).workModePreference as
+              | "remote"
+              | "hybrid"
+              | "onsite"
+              | "any"
+              | null) ?? "any"
+          }
+          initialMaxOfficeDays={
+            (state as { maxOfficeDaysPerWeek?: number | null }).maxOfficeDaysPerWeek ?? null
+          }
+          onChange={useCallback(
+            (s: {
+              cultureLikes: string[];
+              cultureAvoids: string[];
+              workModePreference: "remote" | "hybrid" | "onsite" | "any";
+              maxOfficeDaysPerWeek: number | null;
+            }) => {
+              setState((prev) => ({
+                ...prev,
+                cultureLikes: s.cultureLikes as never,
+                cultureAvoids: s.cultureAvoids as never,
+                workModePreference: s.workModePreference as never,
+                maxOfficeDaysPerWeek: s.maxOfficeDaysPerWeek as never,
+              }));
+            },
+            [],
+          )}
+        />
       </section>
 
       <section className="space-y-4 rounded-lg border border-[var(--border)] p-4">
