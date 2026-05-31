@@ -4,6 +4,7 @@
 
 import { parse } from "node-html-parser";
 import type { PortfolioRepoData } from "@/lib/portfolio/github";
+import { extractTechTokens } from "@/lib/tech-tokens";
 
 export type WebPortfolioKind = "blog_post" | "website";
 
@@ -22,30 +23,6 @@ const FETCH_HEADERS: HeadersInit = {
   Accept: "text/html,application/xhtml+xml",
   "Accept-Language": "en-US,en;q=0.9",
 };
-
-const TECH_TOKENS = [
-  // Languages
-  "TypeScript", "JavaScript", "Python", "Rust", "Go", "Golang", "Java",
-  "Kotlin", "Swift", "C++", "C#", "Ruby", "PHP", "Elixir", "Erlang", "Scala",
-  "Haskell", "OCaml", "Clojure", "Bash", "Lua", "Nim", "Zig",
-  // Frameworks / libs
-  "React", "Next.js", "Vue", "Svelte", "Angular", "Solid",
-  "Express", "Fastify", "NestJS", "Rails", "Django", "Flask", "FastAPI",
-  "Spring", "Phoenix", "Gin", "Echo", "Axum", "Actix", "Rocket",
-  "Tailwind", "TailwindCSS",
-  // Data / infra
-  "PostgreSQL", "MySQL", "MongoDB", "Redis", "Cassandra", "DynamoDB",
-  "Elasticsearch", "ClickHouse", "DuckDB", "SQLite", "pgvector",
-  "Kafka", "RabbitMQ", "NATS", "Pulsar",
-  // Cloud / DevOps
-  "AWS", "Azure", "GCP", "Kubernetes", "Docker", "Terraform", "Pulumi",
-  "Ansible", "Helm", "ArgoCD", "Flux", "Vault", "Consul", "NixOS", "Nix",
-  // ML / AI
-  "PyTorch", "TensorFlow", "JAX", "ONNX", "LLM", "RAG",
-  "OpenAI", "Anthropic", "Claude", "Gemini",
-  // Other
-  "GraphQL", "gRPC", "WebAssembly", "WASM", "WebGPU", "Linux", "BSD",
-];
 
 function fetchWithUserAgent(url: string): Promise<Response> {
   return fetch(url, {
@@ -95,12 +72,9 @@ function extractMeta(html: string): WebMeta {
     null;
 
   // Tech keyword extraction: search title + description + first 4KB of body
-  const haystack = `${title}\n${description}\n${bodyExcerpt.slice(0, 4_000)}`;
-  const tech: string[] = [];
-  for (const t of TECH_TOKENS) {
-    const re = new RegExp(`\\b${t.replace(/[+#.]/g, "\\$&")}\\b`, "i");
-    if (re.test(haystack) && !tech.includes(t)) tech.push(t);
-  }
+  const tech = extractTechTokens(
+    `${title}\n${description}\n${bodyExcerpt.slice(0, 4_000)}`,
+  );
 
   return {
     title: title || "(untitled)",

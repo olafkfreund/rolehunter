@@ -5,8 +5,11 @@ import { getJobDetail } from "@/lib/linkedin/client";
 import { listApplicationsWithJob } from "@/lib/repo/applications";
 import { getCompanyForJob } from "@/lib/repo/companies";
 import { getProfile } from "@/lib/repo/profile";
+import { getActiveCv } from "@/lib/repo/cv";
 import { haversineKm } from "@/lib/companies/geo";
-import type { JobListing } from "@/lib/db/schema";
+import { computeFitReport } from "@/lib/jobs/fit-score";
+import type { JobListing, CvMaster } from "@/lib/db/schema";
+import type { CvJson } from "@/lib/llm";
 import { MatchPanel } from "@/components/match-panel";
 import { CvRewritePanel } from "@/components/cv-rewrite-panel";
 import { InterviewsPanel } from "@/components/interviews-panel";
@@ -14,6 +17,7 @@ import { CoverLetterPanel } from "@/components/cover-letter-panel";
 import { FlashcardsPanel } from "@/components/flashcards-panel";
 import { JobActionBar } from "@/components/job-action-bar";
 import { CompanyPanel } from "@/components/company-panel";
+import { FitDashboard } from "@/components/fit-dashboard";
 
 export const dynamic = "force-dynamic";
 
@@ -61,10 +65,11 @@ export default async function JobDetailPage({
   const application = applications.find((a) => a.jobId === job.id) ?? null;
   const applicationId: number | null = application?.id ?? null;
 
-  // v3.2 — company panel data
-  const [company, profileForGeo] = await Promise.all([
+  // v3.2 — company panel data + fit dashboard inputs
+  const [company, profileForGeo, activeCv] = await Promise.all([
     getCompanyForJob(job.id),
     getProfile(),
+    getActiveCv(),
   ]);
   const profileHasHomeAddress = !!profileForGeo.homeLat && !!profileForGeo.homeLng;
   let initialDistanceKm: number | null = null;
@@ -134,6 +139,15 @@ export default async function JobDetailPage({
           )}
         </div>
       </header>
+
+      <FitDashboard
+        report={computeFitReport(
+          job,
+          (activeCv?.parsedJson ?? null) as CvJson | null,
+          company,
+          profileForGeo,
+        )}
+      />
 
       <CompanyPanel
         jobId={job.id}
