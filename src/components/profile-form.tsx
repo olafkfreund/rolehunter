@@ -191,6 +191,87 @@ export function ProfileForm({ initial }: { initial: Profile }) {
           )}
       </section>
 
+      <section className="space-y-3 rounded-lg border border-[var(--border)] p-4">
+        <div className="flex items-baseline justify-between gap-2 flex-wrap">
+          <h3 className="font-semibold">Compensation target</h3>
+          <span className="text-[11px] text-[var(--muted-foreground)] font-mono">
+            powers role-fit Compensation scoring
+          </span>
+        </div>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Used to score every job's posted salary band against your target on the role-fit
+          dashboard. Leave empty if you'd rather just see what each role posts.
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className={field}>
+            <div className={label}>Min</div>
+            <input
+              type="number"
+              min={0}
+              className={input}
+              placeholder="80000"
+              value={(state as { salaryTargetMin?: number | null }).salaryTargetMin ?? ""}
+              onChange={(e) =>
+                set(
+                  "salaryTargetMin" as keyof typeof state,
+                  (e.target.value === "" ? null : Number(e.target.value)) as never,
+                )
+              }
+            />
+          </div>
+          <div className={field}>
+            <div className={label}>Max</div>
+            <input
+              type="number"
+              min={0}
+              className={input}
+              placeholder="120000"
+              value={(state as { salaryTargetMax?: number | null }).salaryTargetMax ?? ""}
+              onChange={(e) =>
+                set(
+                  "salaryTargetMax" as keyof typeof state,
+                  (e.target.value === "" ? null : Number(e.target.value)) as never,
+                )
+              }
+            />
+          </div>
+          <div className={field}>
+            <div className={label}>Currency</div>
+            <input
+              className={input}
+              placeholder="GBP"
+              maxLength={8}
+              value={
+                (state as { salaryTargetCurrency?: string | null }).salaryTargetCurrency ?? ""
+              }
+              onChange={(e) =>
+                set(
+                  "salaryTargetCurrency" as keyof typeof state,
+                  e.target.value.toUpperCase() as never,
+                )
+              }
+            />
+          </div>
+          <div className={field}>
+            <div className={label}>Period</div>
+            <select
+              className={input}
+              value={
+                (state as { salaryTargetPeriod?: string | null }).salaryTargetPeriod ?? "annual"
+              }
+              onChange={(e) =>
+                set("salaryTargetPeriod" as keyof typeof state, e.target.value as never)
+              }
+            >
+              <option value="annual">annual</option>
+              <option value="monthly">monthly</option>
+              <option value="daily">daily</option>
+              <option value="hourly">hourly</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
       <section className="space-y-4 rounded-lg border border-[var(--border)] p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="font-semibold">LinkedIn</h3>

@@ -71,6 +71,13 @@ export const profile = pgTable("profile", {
   homeLat: doublePrecision("home_lat"),
   homeLng: doublePrecision("home_lng"),
   homeGeocodedAt: timestamp("home_geocoded_at"),
+  // v3.2 — target compensation band (#43 follow-up to slice 6 fit dashboard)
+  // Used to score the Compensation dimension of the role-fit dashboard
+  // against the JD's posted salary band.
+  salaryTargetMin: integer("salary_target_min"),
+  salaryTargetMax: integer("salary_target_max"),
+  salaryTargetCurrency: varchar("salary_target_currency", { length: 8 }),
+  salaryTargetPeriod: varchar("salary_target_period", { length: 16 }), // annual|monthly|daily|hourly
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
