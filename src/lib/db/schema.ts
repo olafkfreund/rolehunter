@@ -99,6 +99,20 @@ export const profile = pgTable("profile", {
     .$type<{ matched: string[]; missing: string[] }>()
     .notNull()
     .default({ matched: [], missing: [] }),
+  // v3.2 — right to work. Powers the /jobs filter "right-to-work: mine"
+  // and a recruiter-facing answer when the user is asked. zones are
+  // canonical short keys (US, UK, EU, CA, AU, IN, NZ, MENA, OTHER);
+  // evidence is a free-text per-zone note ("British citizen", "Settled
+  // status", "TN visa", "OPT until 2027"); freeText is a catch-all for
+  // anything else.
+  rightToWork: jsonb("right_to_work")
+    .$type<{
+      zones: string[];
+      evidence: Record<string, string>;
+      freeText: string;
+    }>()
+    .notNull()
+    .default({ zones: [], evidence: {}, freeText: "" }),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 

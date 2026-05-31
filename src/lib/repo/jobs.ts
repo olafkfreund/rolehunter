@@ -4,6 +4,7 @@ import { getDb, schema } from "@/lib/db";
 import type { JobListing } from "@/lib/db/schema";
 import type { JSearchJob } from "@/lib/jsearch/client";
 import type { LinkedInJob } from "@/lib/linkedin/client";
+import { jobLocationMatchesRightToWork } from "@/lib/jobs/right-to-work";
 
 export type ScoreBand = "top" | "stretch" | "pass" | "unscored" | "all";
 export type SortMode = "date" | "score" | "fit" | "distance";
@@ -17,6 +18,10 @@ export async function listJobs(
     /** "active" (default) excludes hidden; "hidden" only hidden;
      *  "all" returns both. */
     visibility?: "active" | "hidden" | "all";
+    /** Declared right-to-work zones. When provided + non-empty, jobs whose
+     *  location clearly falls outside these zones are filtered out. Unknown
+     *  locations stay visible (false-negative-safe). */
+    rightToWorkZones?: string[];
   } = {},
 ): Promise<JobListing[]> {
   const db = getDb();
@@ -24,6 +29,7 @@ export async function listJobs(
   const fitBand = opts.fitBand ?? "all";
   const sort = opts.sort ?? "score";
   const visibility = opts.visibility ?? "active";
+  const rtwZones = opts.rightToWorkZones ?? [];
   const limit = opts.limit ?? 200;
 
   let query = db.select().from(schema.jobListings).$dynamic();
@@ -89,7 +95,17 @@ export async function listJobs(
     query = query.where(sql`${schema.jobListings.fitOverallScore} IS NULL`);
   }
 
-  return query.limit(limit);
+  // Right-to-work filter — applied JS-side because job.location is free text
+  // and the classifier has heuristics that don't translate to SQL cheanly.
+  // To preserve the limit semantically we over-fetch then re-slice.
+  if (rtwZones.length === 0) {
+    return query.limit(limit);
+  }
+  const wide = await query.limit(limit * 3);
+  const filtered = wide.filter((j) =>
+    jobLocationMatchesRightToWork(j.location, rtwZones),
+  );
+  return filtered.slice(0, limit);
 }
 
 export async function countJobsByBand(): Promise<Record<ScoreBand, number>> {

@@ -6,6 +6,7 @@ import type { Profile } from "@/lib/db/schema";
 import type { Provider } from "@/lib/llm/types";
 import { ProviderToggle } from "./provider-toggle";
 import { CulturePrefs } from "./culture-prefs";
+import { RightToWorkForm } from "./right-to-work-form";
 import { CULTURE_KEYWORDS } from "@/lib/jobs/culture-keywords";
 
 const input =
@@ -272,6 +273,42 @@ export function ProfileForm({ initial }: { initial: Profile }) {
             </select>
           </div>
         </div>
+      </section>
+
+      <section className="space-y-3 rounded-lg border border-[var(--border)] p-4">
+        <div className="flex items-baseline justify-between gap-2 flex-wrap">
+          <h3 className="font-semibold">Right to work</h3>
+          <span className="text-[11px] text-[var(--muted-foreground)] font-mono">
+            powers /jobs location filter + recruiter answer
+          </span>
+        </div>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Where can you legally take a job? Optional evidence per zone for the day a
+          recruiter asks. Filter <code className="font-mono">/jobs?rtw=mine</code> hides
+          roles outside your declared zones (unknown locations stay visible).
+        </p>
+        <RightToWorkForm
+          initial={(() => {
+            const rtw = (state as { rightToWork?: { zones?: string[]; evidence?: Record<string, string>; freeText?: string } }).rightToWork;
+            return {
+              zones: Array.isArray(rtw?.zones) ? (rtw!.zones as string[]) : [],
+              evidence:
+                rtw?.evidence && typeof rtw.evidence === "object"
+                  ? (rtw.evidence as Record<string, string>)
+                  : {},
+              freeText: typeof rtw?.freeText === "string" ? rtw.freeText : "",
+            };
+          })()}
+          onChange={useCallback(
+            (next: { zones: string[]; evidence: Record<string, string>; freeText: string }) => {
+              setState((prev) => ({
+                ...prev,
+                rightToWork: next as never,
+              }));
+            },
+            [],
+          )}
+        />
       </section>
 
       <section className="space-y-3 rounded-lg border border-[var(--border)] p-4">

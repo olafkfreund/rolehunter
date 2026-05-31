@@ -72,6 +72,16 @@ const patchSchema = z.object({
     )
     .max(20)
     .optional(),
+  rightToWork: z
+    .object({
+      zones: z
+        .array(z.enum(["US", "UK", "EU", "CA", "AU", "IN", "NZ", "MENA", "OTHER"]))
+        .max(20)
+        .default([]),
+      evidence: z.record(z.string(), z.string().max(2_000)).default({}),
+      freeText: z.string().max(4_000).default(""),
+    })
+    .optional(),
 });
 
 export async function PATCH(req: Request) {
