@@ -70,7 +70,7 @@ unset NODE_ENV
 npm install
 source .env
 DATABASE_URL="postgres://rolehunter:${DB_PASSWORD}@127.0.0.1:${DB_PORT}/rolehunter" \
-  npx drizzle-kit migrate
+  node scripts/migrate.mjs
 npm run dev
 ```
 
@@ -81,10 +81,10 @@ npm run dev
 1. Edit `src/lib/db/schema.ts`.
 2. Regenerate: `unset NODE_ENV && DATABASE_URL=... npx drizzle-kit generate`. This writes a new `.sql` to `src/lib/db/migrations/`.
 3. Read the generated SQL, add any backfill statements manually if needed.
-4. Apply: `DATABASE_URL=... npx drizzle-kit migrate`.
+4. Apply: `DATABASE_URL=... node scripts/migrate.mjs` (drizzle-kit is only needed for `generate`, not `migrate`).
 5. Rebuild the container so the new migration ships: `docker compose up -d --build app`.
 
-The runner stage bundles the migrations folder, so on first container start the migrations directory is there for `drizzle-kit migrate` to apply.
+The runner stage bundles the migrations folder and `scripts/migrate.mjs`, so `docker compose exec app node scripts/migrate.mjs` applies any pending migrations without shipping drizzle-kit (and its esbuild dependency) in the image.
 
 ## Adding an LLM method
 

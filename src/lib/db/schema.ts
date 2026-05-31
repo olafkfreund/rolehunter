@@ -4,6 +4,9 @@ import {
   text,
   timestamp,
   integer,
+  smallint,
+  numeric,
+  date,
   jsonb,
   pgEnum,
   varchar,
@@ -13,8 +16,30 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
-export const jobSourceEnum = pgEnum("job_source", ["paste", "jsearch", "linkedin"]);
-export const providerEnum = pgEnum("llm_provider", ["claude", "gemini"]);
+export const jobSourceEnum = pgEnum("job_source", [
+  "paste",
+  "jsearch",
+  "linkedin",
+  "adzuna",
+  "indeed",
+  "dice",
+  "jobspy",
+  "apify",
+]);
+export const providerEnum = pgEnum("llm_provider", ["claude", "gemini", "openai", "ollama"]);
+export const profileFrequencyEnum = pgEnum("profile_frequency", [
+  "hourly",
+  "every_4h",
+  "daily",
+  "weekly",
+]);
+export const searchRunStatusEnum = pgEnum("search_run_status", [
+  "running",
+  "success",
+  "failed",
+  "partial",
+  "skipped_budget",
+]);
 export const stageEnum = pgEnum("application_stage", [
   "saved",
   "applied",
@@ -74,10 +99,24 @@ export const jobListings = pgTable(
     salaryCurrency: varchar("salary_currency", { length: 8 }),
     rawJson: jsonb("raw_json"),
     cachedAt: timestamp("cached_at").defaultNow().notNull(),
+    // v3.0 additions
+    dedupeHash: text("dedupe_hash"),
+    sourcesSeen: jsonb("sources_seen").notNull().default([]),
+    fetchedAt: timestamp("fetched_at").defaultNow().notNull(),
+    topScore: smallint("top_score"),
+    searchProfileId: integer("search_profile_id").references(
+      (): any => searchProfiles.id,
+      { onDelete: "set null" },
+    ),
   },
   (t) => ({
     externalIdx: uniqueIndex("job_listings_external_idx").on(t.source, t.externalId),
     titleIdx: index("job_listings_title_idx").on(t.title),
+    // v3.0 additions
+    feedIdx: index("job_listings_feed_idx").on(t.topScore.desc(), t.fetchedAt.desc()),
+    dedupeIdx: index("job_listings_dedupe_idx").on(t.dedupeHash),
+    fetchedIdx: index("job_listings_fetched_idx").on(t.fetchedAt.desc()),
+    profileIdx: index("job_listings_profile_idx").on(t.searchProfileId),
   }),
 );
 
@@ -345,3 +384,97 @@ export type Flashcard = typeof flashcards.$inferSelect;
 export type CanonicalGap = typeof canonicalGaps.$inferSelect;
 export type CanonicalGapSource = typeof canonicalGapSources.$inferSelect;
 export type CanonicalGapResource = typeof canonicalGapResources.$inferSelect;
+
+// ─── v3.0: multi-source aggregation ────────────────────────────────────────
+
+export const searchProfiles = pgTable(
+  "search_profiles",
+  {
+    id: serial("id").primaryKey(),
+    name: varchar("name", { length: 120 }).notNull(),
+    query: text("query").notNull(),
+    location: varchar("location", { length: 200 }),
+    locationRadiusKm: integer("location_radius_km"),
+    salaryMinUsd: integer("salary_min_usd"),
+    salaryMaxUsd: integer("salary_max_usd"),
+    salaryCurrency: varchar("salary_currency", { length: 8 }).default("USD"),
+    remoteModes: jsonb("remote_modes").notNull().default([]),
+    experienceLevels: jsonb("experience_levels").notNull().default([]),
+    jobTypes: jsonb("job_types").notNull().default([]),
+    sources: jsonb("sources").notNull(),
+    frequency: profileFrequencyEnum("frequency").notNull().default("daily"),
+    maxResultsPerRun: integer("max_results_per_run").notNull().default(50),
+    active: boolean("active").notNull().default(true),
+    nextRunAt: timestamp("next_run_at").defaultNow().notNull(),
+    lastRunAt: timestamp("last_run_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    dueIdx: index("search_profiles_due_idx").on(t.active, t.nextRunAt),
+  }),
+);
+
+export const searchRuns = pgTable(
+  "search_runs",
+  {
+    id: serial("id").primaryKey(),
+    profileId: integer("profile_id")
+      .notNull()
+      .references(() => searchProfiles.id, { onDelete: "cascade" }),
+    source: jobSourceEnum("source").notNull(),
+    status: searchRunStatusEnum("status").notNull().default("running"),
+    startedAt: timestamp("started_at").defaultNow().notNull(),
+    finishedAt: timestamp("finished_at"),
+    durationMs: integer("duration_ms"),
+    jobsFound: integer("jobs_found").notNull().default(0),
+    jobsNew: integer("jobs_new").notNull().default(0),
+    jobsDuplicate: integer("jobs_duplicate").notNull().default(0),
+    jobsFailedScore: integer("jobs_failed_score").notNull().default(0),
+    costUsdEstimate: numeric("cost_usd_estimate", { precision: 10, scale: 4 }),
+    errorMessage: text("error_message"),
+  },
+  (t) => ({
+    byProfileIdx: index("search_runs_profile_idx").on(t.profileId, t.startedAt.desc()),
+    byStatusIdx: index("search_runs_status_idx").on(t.status),
+  }),
+);
+
+export const sourceBudgets = pgTable(
+  "source_budgets",
+  {
+    id: serial("id").primaryKey(),
+    // text not enum: 'auto_score' is a synthetic budget source not in job_source
+    source: text("source").notNull(),
+    monthYear: varchar("month_year", { length: 7 }).notNull(),
+    usageCount: integer("usage_count").notNull().default(0),
+    estimatedSpendUsd: numeric("estimated_spend_usd", { precision: 10, scale: 4 })
+      .notNull()
+      .default("0"),
+    monthlyCapUsd: numeric("monthly_cap_usd", { precision: 10, scale: 4 }).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    uniqByMonth: uniqueIndex("source_budgets_uniq_month_idx").on(t.source, t.monthYear),
+  }),
+);
+
+export const sourceQuotasDaily = pgTable(
+  "source_quotas_daily",
+  {
+    id: serial("id").primaryKey(),
+    source: jobSourceEnum("source").notNull(),
+    day: date("day").notNull(),
+    usageCount: integer("usage_count").notNull().default(0),
+    dailyCap: integer("daily_cap").notNull(),
+  },
+  (t) => ({
+    uniqByDay: uniqueIndex("source_quotas_daily_uniq_idx").on(t.source, t.day),
+  }),
+);
+
+export type SearchProfile = typeof searchProfiles.$inferSelect;
+export type SearchRun = typeof searchRuns.$inferSelect;
+export type SourceBudget = typeof sourceBudgets.$inferSelect;
+export type SourceQuotaDaily = typeof sourceQuotasDaily.$inferSelect;
