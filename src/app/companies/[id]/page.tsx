@@ -6,10 +6,19 @@ import {
   getJobsForCompany,
   listCompanies,
 } from "@/lib/repo/companies";
+import {
+  listBenefits,
+  listConnections,
+  listLayoffs,
+  listNews,
+  listOffices,
+} from "@/lib/repo/company-siblings";
+import { getCompanyFitScore } from "@/lib/companies/fit-score";
 import { getProfile } from "@/lib/repo/profile";
 import { haversineKm } from "@/lib/companies/geo";
 import type { Company } from "@/lib/db/schema";
 import { CompanyCompareDrawer } from "@/components/company-compare-drawer";
+import { CompanySiblingPanels } from "@/components/company-sibling-panels";
 
 export const dynamic = "force-dynamic";
 
@@ -40,11 +49,18 @@ export default async function CompanyDetailPage({
   const [company, profile] = await Promise.all([getCompanyById(numericId), getProfile()]);
   if (!company) notFound();
 
-  const [jobs, apps, otherCompanies] = await Promise.all([
-    getJobsForCompany(company.id),
-    getApplicationsForCompany(company.id),
-    listCompanies(),
-  ]);
+  const [jobs, apps, otherCompanies, news, layoffs, benefits, connections, offices, fit] =
+    await Promise.all([
+      getJobsForCompany(company.id),
+      getApplicationsForCompany(company.id),
+      listCompanies(),
+      listNews(company.id, { limit: 15 }),
+      listLayoffs(company.id),
+      listBenefits(company.id),
+      listConnections(company.id),
+      listOffices(company.id),
+      getCompanyFitScore(company.id),
+    ]);
 
   // Distance from home if both points known
   let distanceKm: number | null = null;
@@ -235,6 +251,15 @@ export default async function CompanyDetailPage({
           />
         </section>
       )}
+
+      <CompanySiblingPanels
+        news={news}
+        layoffs={layoffs}
+        benefits={benefits}
+        connections={connections}
+        offices={offices}
+        fitScore={fit}
+      />
 
       <section className="rise" data-delay="6">
         <div className="flex items-baseline justify-between mb-2">
