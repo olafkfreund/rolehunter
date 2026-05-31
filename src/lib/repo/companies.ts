@@ -3,7 +3,18 @@ import { getDb, schema } from "@/lib/db";
 import type { Company, JobListing } from "@/lib/db/schema";
 import { enrichCompanyByName } from "@/lib/companies/enrich";
 import { fetchCompanyNews } from "@/lib/companies/sources/news-rss";
-import { upsertNewsItem } from "./company-siblings";
+import { lookupCompanyOnLevelsFyi, rowsToBenefits } from "@/lib/companies/sources/levels-fyi";
+import { eventsToNewLayoffs, lookupCompanyLayoffs } from "@/lib/companies/sources/layoffs-fyi";
+import {
+  lookupCompanyEmployees,
+  rowsToConnections,
+} from "@/lib/companies/sources/linkedin-company";
+import {
+  upsertBenefit,
+  upsertConnection,
+  upsertLayoff,
+  upsertNewsItem,
+} from "./company-siblings";
 
 const FRESH_MS = 7 * 24 * 60 * 60 * 1000; // a company snapshot is "fresh" for 7 days
 
@@ -122,16 +133,58 @@ export async function enrichAndPersist(
       .where(eq(schema.jobListings.id, opts.jobIdToBackfill));
   }
 
-  // Fan out to free sibling-table enrichers. Each is best-effort; failures
-  // don't block the enrich call.
+  // Fan out to sibling-table enrichers. Each is best-effort; failures
+  // don't block the enrich call. Apify-backed adapters return null when
+  // their actor id env var isn't set — that path is also a silent skip.
   try {
     const newsItems = await fetchCompanyNews(updated.name, { limit: 10 });
-    for (const n of newsItems) {
-      await upsertNewsItem(updated.id, n);
+    for (const n of newsItems) await upsertNewsItem(updated.id, n);
+  } catch { /* news is bonus */ }
+
+  try {
+    const rows = await lookupCompanyOnLevelsFyi(updated.name);
+    if (rows) {
+      for (const b of rowsToBenefits(rows)) await upsertBenefit(updated.id, b);
     }
-  } catch {
-    // ignore — news is bonus signal
-  }
+  } catch { /* levels.fyi is bonus */ }
+
+  try {
+    const events = await lookupCompanyLayoffs(updated.name);
+    if (events) {
+      const news: typeof events = [];
+      let mostRecent: { date: Date; count: number | null } | null = null;
+      for (const e of events) {
+        await upsertLayoff(updated.id, eventsToNewLayoffs([e])[0]);
+        const d = new Date(e.announcedAt);
+        if (!mostRecent || d > mostRecent.date) {
+          mostRecent = { date: d, count: e.affectedCount };
+        }
+        news.push(e);
+      }
+      // Flag the most recent layoff onto the company row for the panel.
+      if (mostRecent) {
+        const recencyMs = Date.now() - mostRecent.date.getTime();
+        const isRecent = recencyMs < 365 * 24 * 60 * 60 * 1000;
+        await db
+          .update(schema.companies)
+          .set({
+            hasRecentLayoff: isRecent,
+            lastLayoffAt: mostRecent.date,
+            lastLayoffCount: mostRecent.count,
+          })
+          .where(eq(schema.companies.id, updated.id));
+      }
+    }
+  } catch { /* layoffs is bonus */ }
+
+  try {
+    const rows = await lookupCompanyEmployees(updated.name, {
+      linkedinUrl: updated.linkedinUrl,
+    });
+    if (rows) {
+      for (const c of rowsToConnections(rows)) await upsertConnection(updated.id, c);
+    }
+  } catch { /* linkedin-company is bonus */ }
 
   return updated;
 }
