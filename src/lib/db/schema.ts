@@ -87,6 +87,10 @@ export const profile = pgTable("profile", {
   maxOfficeDaysPerWeek: smallint("max_office_days_per_week"),
   cultureLikes: jsonb("culture_likes").notNull().default([]),
   cultureAvoids: jsonb("culture_avoids").notNull().default([]),
+  // v3.2 — company / commute prefs (#43 /settings/company-prefs slice)
+  maxCommuteMinutes: smallint("max_commute_minutes"),
+  preferredTransportMode: varchar("preferred_transport_mode", { length: 16 }), // car|transit|bike|walk|any
+  benefitPriorities: jsonb("benefit_priorities").notNull().default([]),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
@@ -615,6 +619,184 @@ export const companies = pgTable(
 );
 
 export type Company = typeof companies.$inferSelect;
+
+// ─────────────────────────────────────────────────────────────────────────
+// v3.2 — Company sibling tables (#43 final-stretch)
+//
+// Each holds per-source enrichment data referencing the canonical company.
+// Adapters land in src/lib/companies/sources/ and write to these tables on
+// enrich. All tables have ON DELETE CASCADE so removing a company tidies up.
+
+export const companyOffices = pgTable(
+  "company_offices",
+  {
+    id: serial("id").primaryKey(),
+    companyId: integer("company_id")
+      .notNull()
+      .references((): any => companies.id, { onDelete: "cascade" }),
+    label: text("label").notNull().default(""), // "HQ", "London office", ...
+    address: text("address"),
+    lat: doublePrecision("lat"),
+    lng: doublePrecision("lng"),
+    amenities: jsonb("amenities").notNull().default([]), // ["gym","parking",...]
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    byCompany: index("company_offices_company_idx").on(t.companyId),
+  }),
+);
+export type CompanyOffice = typeof companyOffices.$inferSelect;
+
+export const companyReviewSourceEnum = pgEnum("company_review_source", [
+  "glassdoor",
+  "blind",
+  "fishbowl",
+  "other",
+]);
+
+export const companyReviews = pgTable(
+  "company_reviews",
+  {
+    id: serial("id").primaryKey(),
+    companyId: integer("company_id")
+      .notNull()
+      .references((): any => companies.id, { onDelete: "cascade" }),
+    source: companyReviewSourceEnum("source").notNull(),
+    title: text("title"),
+    body: text("body").notNull().default(""),
+    rating: numeric("rating", { precision: 3, scale: 2 }),
+    pros: text("pros"),
+    cons: text("cons"),
+    role: text("role"),
+    postedAt: timestamp("posted_at"),
+    rawJson: jsonb("raw_json"),
+    fetchedAt: timestamp("fetched_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    byCompany: index("company_reviews_company_idx").on(t.companyId),
+    bySource: index("company_reviews_source_idx").on(t.source),
+  }),
+);
+export type CompanyReview = typeof companyReviews.$inferSelect;
+
+export const companyBenefits = pgTable(
+  "company_benefits",
+  {
+    id: serial("id").primaryKey(),
+    companyId: integer("company_id")
+      .notNull()
+      .references((): any => companies.id, { onDelete: "cascade" }),
+    category: varchar("category", { length: 64 }).notNull(), // "401k"|"pto"|"parental"|"health"|"equity"|"stipend"|"other"
+    description: text("description").notNull(),
+    valueText: text("value_text"), // free-form: "5% match", "20 days", "$1000/yr"
+    source: varchar("source", { length: 64 }), // "glassdoor"|"levels.fyi"|"manual"
+    rawJson: jsonb("raw_json"),
+    fetchedAt: timestamp("fetched_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    byCompany: index("company_benefits_company_idx").on(t.companyId),
+  }),
+);
+export type CompanyBenefit = typeof companyBenefits.$inferSelect;
+
+export const companyNewsKindEnum = pgEnum("company_news_kind", [
+  "news",
+  "funding",
+  "acquisition",
+  "ipo",
+  "leadership",
+  "press_release",
+]);
+
+export const companyNews = pgTable(
+  "company_news",
+  {
+    id: serial("id").primaryKey(),
+    companyId: integer("company_id")
+      .notNull()
+      .references((): any => companies.id, { onDelete: "cascade" }),
+    kind: companyNewsKindEnum("kind").notNull().default("news"),
+    title: text("title").notNull(),
+    summary: text("summary").notNull().default(""),
+    url: text("url"),
+    source: varchar("source", { length: 64 }), // "google-news-rss"|"crunchbase"|"tavily"|"manual"
+    publishedAt: timestamp("published_at"),
+    rawJson: jsonb("raw_json"),
+    fetchedAt: timestamp("fetched_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    byCompany: index("company_news_company_idx").on(t.companyId),
+    byPublished: index("company_news_published_idx").on(t.publishedAt.desc()),
+  }),
+);
+export type CompanyNewsItem = typeof companyNews.$inferSelect;
+
+export const companyLayoffs = pgTable(
+  "company_layoffs",
+  {
+    id: serial("id").primaryKey(),
+    companyId: integer("company_id")
+      .notNull()
+      .references((): any => companies.id, { onDelete: "cascade" }),
+    affectedCount: integer("affected_count"),
+    percentOfWorkforce: numeric("percent_of_workforce", { precision: 5, scale: 2 }),
+    announcedAt: timestamp("announced_at").notNull(),
+    sourceUrl: text("source_url"),
+    summary: text("summary").notNull().default(""),
+    rawJson: jsonb("raw_json"),
+    fetchedAt: timestamp("fetched_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    byCompany: index("company_layoffs_company_idx").on(t.companyId),
+    byAnnounced: index("company_layoffs_announced_idx").on(t.announcedAt.desc()),
+  }),
+);
+export type CompanyLayoff = typeof companyLayoffs.$inferSelect;
+
+export const companyConnectionKindEnum = pgEnum("company_connection_kind", [
+  "current_employee",
+  "alumni",
+  "school_alumni",
+  "mutual_connection",
+]);
+
+export const companyConnections = pgTable(
+  "company_connections",
+  {
+    id: serial("id").primaryKey(),
+    companyId: integer("company_id")
+      .notNull()
+      .references((): any => companies.id, { onDelete: "cascade" }),
+    kind: companyConnectionKindEnum("kind").notNull(),
+    name: text("name").notNull().default(""),
+    headline: text("headline"),
+    linkedinUrl: text("linkedin_url"),
+    sharedSchool: text("shared_school"),
+    rawJson: jsonb("raw_json"),
+    fetchedAt: timestamp("fetched_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    byCompany: index("company_connections_company_idx").on(t.companyId),
+  }),
+);
+export type CompanyConnection = typeof companyConnections.$inferSelect;
+
+// Cached fit-score per company (computed from sibling-table signals).
+// Refreshed when a company is enriched or a sibling row changes.
+export const companyFitScores = pgTable(
+  "company_fit_scores",
+  {
+    id: serial("id").primaryKey(),
+    companyId: integer("company_id")
+      .notNull()
+      .references((): any => companies.id, { onDelete: "cascade" })
+      .unique(),
+    score: smallint("score").notNull(), // 0-100
+    breakdownJson: jsonb("breakdown_json").notNull(),
+    computedAt: timestamp("computed_at").defaultNow().notNull(),
+  },
+);
+export type CompanyFitScore = typeof companyFitScores.$inferSelect;
 
 // ─────────────────────────────────────────────────────────────────────────
 // v3.2 slice 4 — app_settings (#43 + user request 2026-05-31)

@@ -89,6 +89,24 @@ export default async function SettingsPage() {
         </p>
       </section>
 
+      <section className="rise" data-delay="2">
+        <div className="card p-4 flex items-baseline justify-between gap-3 flex-wrap">
+          <div>
+            <div className="font-medium text-[14px]">Company preferences</div>
+            <p className="text-[12px] text-[var(--fg-3)] mt-0.5">
+              Max commute, transport mode, ordered benefit priorities. Drives the role-fit
+              Logistics dimension and per-company fit scoring.
+            </p>
+          </div>
+          <Link
+            href="/settings/company-prefs"
+            className="text-[12px] text-[var(--accent)] hover:underline shrink-0"
+          >
+            Open →
+          </Link>
+        </div>
+      </section>
+
       <section className="rise space-y-3" data-delay="2">
         <h2 className="text-lg font-semibold tracking-tight">Runtime settings</h2>
         <p className="text-[12px] text-[var(--fg-3)]">
