@@ -26,7 +26,7 @@ const SOURCES: { id: SourceId; label: string; needsCompanies?: boolean }[] = [
   { id: "adzuna", label: "Adzuna" },
   { id: "indeed", label: "Indeed (MCP)" },
   { id: "dice", label: "Dice (MCP)" },
-  { id: "apify", label: "Apify on-demand" },
+  { id: "apify", label: "Apify on-demand (paid)" },
   { id: "greenhouse", label: "Greenhouse (ATS)", needsCompanies: true },
   { id: "lever", label: "Lever (ATS)", needsCompanies: true },
   { id: "workday", label: "Workday (ATS)", needsCompanies: true },
