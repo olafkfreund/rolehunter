@@ -153,6 +153,12 @@ export const jobListings = pgTable(
     // /jobs/[id] view overwrites.
     distanceKm: smallint("distance_km"),
     distanceScoredAt: timestamp("distance_scored_at"),
+    // v3.2 — soft-delete / hide flag. Mirrors portfolio_items.hidden.
+    // Hidden rows are excluded from /jobs by default and from the
+    // dashboard's "top scored roles" pick. The user can still see them
+    // explicitly via /jobs?band=hidden. Distinct from hard-delete which
+    // wipes the row entirely.
+    hidden: boolean("hidden").notNull().default(false),
   },
   (t) => ({
     externalIdx: uniqueIndex("job_listings_external_idx").on(t.source, t.externalId),

@@ -14,15 +14,26 @@ export async function listJobs(
     fitBand?: ScoreBand;
     sort?: SortMode;
     limit?: number;
+    /** "active" (default) excludes hidden; "hidden" only hidden;
+     *  "all" returns both. */
+    visibility?: "active" | "hidden" | "all";
   } = {},
 ): Promise<JobListing[]> {
   const db = getDb();
   const band = opts.band ?? "all";
   const fitBand = opts.fitBand ?? "all";
   const sort = opts.sort ?? "score";
+  const visibility = opts.visibility ?? "active";
   const limit = opts.limit ?? 200;
 
   let query = db.select().from(schema.jobListings).$dynamic();
+
+  // Hidden filter — applied before everything else.
+  if (visibility === "active") {
+    query = query.where(sql`${schema.jobListings.hidden} = false`);
+  } else if (visibility === "hidden") {
+    query = query.where(sql`${schema.jobListings.hidden} = true`);
+  }
 
   if (sort === "fit") {
     // Highest local fit first, NULLS LAST so unscored jobs sink to the
@@ -417,6 +428,21 @@ export async function cacheJobDistance(
       distanceKm: clamped,
       distanceScoredAt: clamped !== null ? new Date() : null,
     })
+    .where(eq(schema.jobListings.id, jobId))
+    .returning({ id: schema.jobListings.id });
+  return result.length > 0;
+}
+
+/**
+ * Soft-delete: flip the hidden flag. Reversible — set false to bring back.
+ * Hidden jobs are excluded from /jobs by default and from the dashboard's
+ * "top scored roles". Hard-delete (deleteJob) remains the irreversible path.
+ */
+export async function setJobHidden(jobId: number, hidden: boolean): Promise<boolean> {
+  const db = getDb();
+  const result = await db
+    .update(schema.jobListings)
+    .set({ hidden })
     .where(eq(schema.jobListings.id, jobId))
     .returning({ id: schema.jobListings.id });
   return result.length > 0;

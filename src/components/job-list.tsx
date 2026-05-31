@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { JobListing } from "@/lib/db/schema";
 import { TrackJobButton } from "@/components/track-job-button";
+import { JobRowActions } from "@/components/job-row-actions";
 
 function formatSalary(job: JobListing): string | null {
   if (!job.salaryMin && !job.salaryMax) return null;
@@ -91,7 +92,7 @@ export function JobList({ jobs }: { jobs: JobListing[] }) {
         return (
           <li
             key={job.id}
-            className="row group relative transition-colors hover:bg-[var(--bg-elev-2)]"
+            className={`row group relative transition-colors hover:bg-[var(--bg-elev-2)] ${job.hidden ? "opacity-50" : ""}`}
           >
             <Link href={`/jobs/${job.id}`} className="flex items-start gap-4 px-4 py-3 pr-12">
               <div className="score-pill" data-band={band}>
@@ -187,7 +188,10 @@ export function JobList({ jobs }: { jobs: JobListing[] }) {
               </div>
             </Link>
 
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 fade-in-hover">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              <div className="fade-in-hover">
+                <JobRowActions jobId={job.id} hidden={job.hidden ?? false} />
+              </div>
               <TrackJobButton jobId={job.id} variant="icon" />
             </div>
           </li>
