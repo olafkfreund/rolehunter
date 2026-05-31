@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { getDiagnostics } from "@/lib/settings/diagnostics";
 import type { CheckRow } from "@/lib/settings/diagnostics";
+import { listSettingStates } from "@/lib/settings/runtime";
+import { SettingsEditor } from "@/components/settings-editor";
 
 export const dynamic = "force-dynamic";
 
@@ -70,7 +72,7 @@ function CheckList({ rows }: { rows: CheckRow[] }) {
 }
 
 export default async function SettingsPage() {
-  const d = await getDiagnostics();
+  const [d, settingStates] = await Promise.all([getDiagnostics(), listSettingStates()]);
 
   return (
     <div className="space-y-10">
@@ -78,10 +80,22 @@ export default async function SettingsPage() {
         <div className="section-label mb-2">vol. iii · setup</div>
         <h1 className="page-title">Settings</h1>
         <p className="subtitle mt-2">
-          A read-only audit of what RoleHunter sees in your environment. Secrets stay in{" "}
-          <code className="font-mono text-[11px]">.env</code> — this page surfaces what's
-          configured, what's missing, and where to edit the rest.
+          Configure RoleHunter without touching <code className="font-mono text-[11px]">.env</code>.
+          Values you set here are stored in the database and survive container restarts.
+          Need to re-run setup?{" "}
+          <Link href="/welcome?force=1" className="text-[var(--accent)] hover:underline">
+            Open the first-run wizard →
+          </Link>
         </p>
+      </section>
+
+      <section className="rise space-y-3" data-delay="2">
+        <h2 className="text-lg font-semibold tracking-tight">Runtime settings</h2>
+        <p className="text-[12px] text-[var(--fg-3)]">
+          API keys + provider routing. Secrets are masked on display. Saved values take
+          effect on the next <code className="font-mono">docker compose restart app</code>.
+        </p>
+        <SettingsEditor initialStates={settingStates} />
       </section>
 
       <section className="rise" data-delay="2 space-y-3">

@@ -1,4 +1,6 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
+import { isConfigured } from "@/lib/settings/runtime";
 import {
   getApplicationMetrics,
   getUpcomingInterviews,
@@ -72,7 +74,13 @@ async function FeedbackPatternsSection() {
   );
 }
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  // v3.2 slice 4 — auto-redirect to the first-run wizard if no LLM provider
+  // is configured (neither in DB via /settings nor in env). Loud signal for
+  // fresh container deployments.
+  if (!(await isConfigured())) {
+    redirect("/welcome");
+  }
   return (
     <div className="space-y-8">
       <div>
