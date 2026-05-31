@@ -6,6 +6,7 @@
 
 import { lookupCompanyOnWikidata } from "./sources/wikidata";
 import { clearbitLogoUrl } from "./sources/clearbit";
+import { lookupCompanyOnGlassdoor } from "./sources/glassdoor-apify";
 import { geocode } from "./geo";
 
 export interface EnrichmentPayload {
@@ -17,9 +18,17 @@ export interface EnrichmentPayload {
   summary: string;
   logoUrl: string | null;
   wikidataId: string | null;
-  // Future sources fill these in. Slice 1 leaves them null.
   linkedinUrl: string | null;
   glassdoorUrl: string | null;
+  // Glassdoor enrichment (slice 3 — null if APIFY_GLASSDOOR_ACTOR_ID unset)
+  glassdoorRating: number | null;
+  glassdoorReviewCount: number | null;
+  glassdoorRecommendPct: number | null;
+  glassdoorCeoApprovalPct: number | null;
+  glassdoorTopPro: string | null;
+  glassdoorTopCon: string | null;
+  glassdoorAttempted: boolean;
+  // Layoffs (future slice)
   hasRecentLayoff: boolean;
   lastLayoffAt: string | null;
   lastLayoffCount: number | null;
@@ -54,6 +63,13 @@ export async function enrichCompanyByName(name: string): Promise<EnrichmentPaylo
     wikidataId: null,
     linkedinUrl: null,
     glassdoorUrl: null,
+    glassdoorRating: null,
+    glassdoorReviewCount: null,
+    glassdoorRecommendPct: null,
+    glassdoorCeoApprovalPct: null,
+    glassdoorTopPro: null,
+    glassdoorTopCon: null,
+    glassdoorAttempted: false,
     hasRecentLayoff: false,
     lastLayoffAt: null,
     lastLayoffCount: null,
@@ -105,6 +121,34 @@ export async function enrichCompanyByName(name: string): Promise<EnrichmentPaylo
     } else {
       payload.raw.hqGeocodeSkipped = `too broad: '${hq}'`;
     }
+  }
+
+  // Glassdoor via Apify — only runs if APIFY_GLASSDOOR_ACTOR_ID is set.
+  // lookupCompanyOnGlassdoor returns null when the env is missing, in which
+  // case glassdoorAttempted stays false and the UI shows the "configure to
+  // unlock" hint.
+  try {
+    const gd = await lookupCompanyOnGlassdoor(name, {
+      glassdoorUrl: payload.glassdoorUrl,
+    });
+    if (gd) {
+      payload.glassdoorAttempted = true;
+      payload.glassdoorRating = gd.rating;
+      payload.glassdoorReviewCount = gd.reviewCount;
+      payload.glassdoorRecommendPct = gd.recommendPct;
+      payload.glassdoorCeoApprovalPct = gd.ceoApprovalPct;
+      payload.glassdoorTopPro = gd.proSummary;
+      payload.glassdoorTopCon = gd.conSummary;
+      if (gd.url) payload.glassdoorUrl = gd.url;
+      payload.raw.glassdoor = {
+        url: gd.url,
+        rating: gd.rating,
+        reviewCount: gd.reviewCount,
+      };
+    }
+  } catch (e) {
+    payload.glassdoorAttempted = true;
+    payload.raw.glassdoorError = e instanceof Error ? e.message : String(e);
   }
 
   return payload;

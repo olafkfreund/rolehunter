@@ -28,6 +28,7 @@ export interface SettingsDiagnostics {
     perTask: Array<{ task: string; envVar: string; resolvedFromEnv: string | null }>;
   };
   portfolio: CheckRow[];
+  companyIntel: CheckRow[];
   scheduler: {
     enabled: boolean;
     batchSize: number;
@@ -171,6 +172,40 @@ export async function getDiagnostics(): Promise<SettingsDiagnostics> {
     resolvedFromEnv: (env[t.envVar as keyof typeof env] as string) || null,
   }));
 
+  const companyIntel: CheckRow[] = [
+    row(
+      "wikidata",
+      "Wikidata (description / HQ / founded year)",
+      "Free, no key. Resolves company name to a QID and pulls structured facts.",
+      [],
+      true,
+    ),
+    row(
+      "clearbit-logo",
+      "Clearbit Logo URL builder",
+      "Free, no key. Derives a logo URL from the company website host.",
+      [],
+      true,
+    ),
+    row(
+      "nominatim",
+      "OpenStreetMap Nominatim geocoder",
+      "Free, no key (1 req/sec). Geocodes user home address + company HQ for distance.",
+      [],
+      true,
+    ),
+    row(
+      "glassdoor-apify",
+      "Glassdoor via Apify",
+      "Optional. Set APIFY_GLASSDOOR_ACTOR_ID to enable rating + review count + recommend % + top pro/con on enrich.",
+      ["APIFY_API_TOKEN", "APIFY_GLASSDOOR_ACTOR_ID"],
+      !!env.APIFY_API_TOKEN && !!env.APIFY_GLASSDOOR_ACTOR_ID,
+      env.APIFY_GLASSDOOR_ACTOR_ID
+        ? `actor: ${env.APIFY_GLASSDOOR_ACTOR_ID}`
+        : "no actor id set",
+    ),
+  ];
+
   const portfolio: CheckRow[] = [
     row(
       "github-portfolio",
@@ -214,6 +249,7 @@ export async function getDiagnostics(): Promise<SettingsDiagnostics> {
       perTask,
     },
     portfolio,
+    companyIntel,
     scheduler: {
       enabled: bool(env.ENABLE_SCHEDULER),
       batchSize: env.SCHEDULER_BATCH_SIZE,
