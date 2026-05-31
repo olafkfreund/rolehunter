@@ -8,6 +8,7 @@
 import type { Company, JobListing, Profile } from "@/lib/db/schema";
 import type { CvJson } from "@/lib/llm";
 import { classifyJobSkills, type ClassifyResult } from "./skill-classify";
+import { convertCurrency, SUPPORTED_BASES } from "@/lib/fx";
 
 export type Band = "top" | "stretch" | "pass" | "n/a";
 
@@ -332,7 +333,10 @@ function inferPeriodFromAmount(maxAmount: number): string {
   return "annual";
 }
 
-function scoreCompensation(job: JobListing, profile: Profile | null): FitDimension {
+async function scoreCompensation(
+  job: JobListing,
+  profile: Profile | null,
+): Promise<FitDimension> {
   const evidence: string[] = [];
 
   if (!job.salaryMin && !job.salaryMax) {
@@ -357,35 +361,53 @@ function scoreCompensation(job: JobListing, profile: Profile | null): FitDimensi
   }
 
   const tCur = (profile?.salaryTargetCurrency ?? "").toUpperCase();
-  if (tCur && jdCur && tCur !== jdCur) {
-    evidence.push(
-      `Currency mismatch — JD ${jdCur} vs target ${tCur}. Convert manually for now (FX conversion is a follow-up).`,
-    );
-    return { key: "comp", label: "Compensation", score: -1, band: "n/a", evidence };
-  }
 
-  // Normalise both sides to annual-equivalent. JD period: if not stored on the
-  // listing, guess from the magnitude (most senior tech salaries land >30k/yr).
+  // Normalise periods to annual-equivalent before any currency math.
   const targetPeriod = profile?.salaryTargetPeriod ?? "annual";
   const jdPeriod = inferPeriodFromAmount(jdHi);
 
-  const jdLoAnnual = toAnnual(jdLo, jdPeriod);
-  const jdHiAnnual = toAnnual(jdHi, jdPeriod);
+  let jdLoAnnual = toAnnual(jdLo, jdPeriod);
+  let jdHiAnnual = toAnnual(jdHi, jdPeriod);
   const targetLoAnnual = toAnnual(tMin ?? tMax ?? 0, targetPeriod);
   const targetHiAnnual = toAnnual(tMax ?? tMin ?? 0, targetPeriod);
 
-  if (jdPeriod !== "annual" || targetPeriod !== "annual") {
+  // FX conversion — if the JD and target currencies differ, convert JD into
+  // target currency. Falls back to n/a with a clear evidence row if FX is
+  // unavailable for either side.
+  let displayCur = jdCur;
+  if (tCur && jdCur && tCur !== jdCur) {
+    if (!SUPPORTED_BASES.has(jdCur) || !SUPPORTED_BASES.has(tCur)) {
+      evidence.push(
+        `Currency mismatch — ${jdCur} or ${tCur} not in ECB rate set. Compare manually.`,
+      );
+      return { key: "comp", label: "Compensation", score: -1, band: "n/a", evidence };
+    }
+    const lo = await convertCurrency(jdLoAnnual, jdCur, tCur);
+    const hi = await convertCurrency(jdHiAnnual, jdCur, tCur);
+    if (!lo || !hi) {
+      evidence.push(
+        `Currency mismatch — JD ${jdCur} vs target ${tCur}. FX lookup failed; try again later.`,
+      );
+      return { key: "comp", label: "Compensation", score: -1, band: "n/a", evidence };
+    }
+    jdLoAnnual = lo.amount;
+    jdHiAnnual = hi.amount;
+    displayCur = tCur;
     evidence.push(
-      `Normalised to annual: JD ≈ ${jdLoAnnual.toLocaleString()}–${jdHiAnnual.toLocaleString()} ${jdCur}, target ≈ ${targetLoAnnual.toLocaleString()}–${targetHiAnnual.toLocaleString()} ${tCur || jdCur}`,
+      `FX-converted to ${tCur} via ECB rate ${lo.rate.toFixed(4)} as of ${lo.asOf}: JD ≈ ${Math.round(jdLoAnnual).toLocaleString()}–${Math.round(jdHiAnnual).toLocaleString()} ${tCur}`,
+    );
+  } else if (jdPeriod !== "annual" || targetPeriod !== "annual") {
+    evidence.push(
+      `Normalised to annual: JD ≈ ${Math.round(jdLoAnnual).toLocaleString()}–${Math.round(jdHiAnnual).toLocaleString()} ${displayCur}, target ≈ ${Math.round(targetLoAnnual).toLocaleString()}–${Math.round(targetHiAnnual).toLocaleString()} ${tCur || jdCur}`,
     );
   }
 
-  // Scoring:
-  //   100 if JD floor >= target floor (JD strictly meets/exceeds)
-  //    80 if JD ceiling >= target ceiling but floor < target floor
+  // Scoring (same bands as before):
+  //   100 if JD floor >= target floor
+  //    80 if JD ceiling >= target ceiling
   //    60 if mid-point of JD >= mid-point of target
-  //    30 if JD ceiling < target floor but within 25% gap
-  //     0 if JD ceiling < 75% of target floor
+  //    30 if JD ceiling within 25% gap below target floor
+  //     0 otherwise
   let score: number;
   if (jdLoAnnual >= targetLoAnnual) {
     score = 100;
@@ -481,18 +503,18 @@ function scoreLogistics(
 // Top-level
 // ─────────────────────────────────────────────────────────────────────────
 
-export function computeFitReport(
+export async function computeFitReport(
   job: JobListing,
   cv: CvJson | null,
   company: Company | null,
   profile: Profile | null,
-): FitReport {
+): Promise<FitReport> {
   const skills = classifyJobSkills(job.description, cv?.skills, job.title);
   const dimensions: FitDimension[] = [
     scoreSkills(skills),
     scoreExperience(job, cv),
     scoreCulture(job, profile),
-    scoreCompensation(job, profile),
+    await scoreCompensation(job, profile),
     scoreLogistics(job, company, profile),
   ];
 

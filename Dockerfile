@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json* ./
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --include=dev
+    npm ci --include=dev --force
 
 # --- build layer ---
 FROM node:${NODE_VERSION} AS builder
