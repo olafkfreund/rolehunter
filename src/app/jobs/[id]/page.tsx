@@ -99,7 +99,16 @@ export default async function JobDetailPage({
           <div className="min-w-0 space-y-1">
             <h1 className="text-2xl font-bold tracking-tight">{job.title}</h1>
             <div className="text-sm text-[var(--muted-foreground)]">
-              {job.company || "Unknown company"}
+              {company ? (
+                <Link
+                  href={`/companies/${company.id}`}
+                  className="hover:text-[var(--foreground)] hover:underline underline-offset-2"
+                >
+                  {job.company}
+                </Link>
+              ) : (
+                job.company || "Unknown company"
+              )}
               {job.location ? ` · ${job.location}` : ""}
             </div>
           </div>

@@ -1,6 +1,6 @@
-import { eq, sql } from "drizzle-orm";
+import { desc, eq, ilike, or, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
-import type { Company } from "@/lib/db/schema";
+import type { Company, JobListing } from "@/lib/db/schema";
 import { enrichCompanyByName } from "@/lib/companies/enrich";
 
 const FRESH_MS = 7 * 24 * 60 * 60 * 1000; // a company snapshot is "fresh" for 7 days
@@ -162,4 +162,106 @@ export async function ensureCompanyForJob(
   }
 
   return enrichAndPersist(companyRecord.id, { force: opts.force });
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// v3.2 slice 5 — listing + inverse lookups for the /companies pages
+// ─────────────────────────────────────────────────────────────────────────
+
+export interface CompanyListItem {
+  id: number;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  headquarters: string | null;
+  glassdoorRating: string | null;
+  enrichmentSyncedAt: Date | null;
+  jobCount: number;
+}
+
+export async function listCompanies(opts: { q?: string } = {}): Promise<CompanyListItem[]> {
+  const db = getDb();
+  const q = opts.q?.trim();
+  const baseQuery = db
+    .select({
+      id: schema.companies.id,
+      name: schema.companies.name,
+      slug: schema.companies.slug,
+      logoUrl: schema.companies.logoUrl,
+      headquarters: schema.companies.headquarters,
+      glassdoorRating: schema.companies.glassdoorRating,
+      enrichmentSyncedAt: schema.companies.enrichmentSyncedAt,
+      jobCount: sql<number>`(
+        SELECT COUNT(*)::int
+        FROM ${schema.jobListings}
+        WHERE ${schema.jobListings.companyId} = ${schema.companies.id}
+      )`,
+    })
+    .from(schema.companies);
+
+  const rows = q
+    ? await baseQuery
+        .where(
+          or(
+            ilike(schema.companies.name, `%${q}%`),
+            ilike(schema.companies.headquarters, `%${q}%`),
+          ),
+        )
+        .orderBy(desc(schema.companies.enrichmentSyncedAt))
+    : await baseQuery.orderBy(desc(schema.companies.enrichmentSyncedAt));
+
+  return rows.map((r) => ({
+    ...r,
+    jobCount: Number(r.jobCount ?? 0),
+  }));
+}
+
+export async function getJobsForCompany(
+  companyId: number,
+  opts: { limit?: number } = {},
+): Promise<JobListing[]> {
+  const db = getDb();
+  return db
+    .select()
+    .from(schema.jobListings)
+    .where(eq(schema.jobListings.companyId, companyId))
+    .orderBy(desc(schema.jobListings.fetchedAt))
+    .limit(opts.limit ?? 100);
+}
+
+export interface ApplicationForCompany {
+  id: number;
+  stage: string;
+  jobId: number;
+  jobTitle: string;
+  updatedAt: Date;
+}
+
+export async function getApplicationsForCompany(
+  companyId: number,
+): Promise<ApplicationForCompany[]> {
+  const db = getDb();
+  const rows = await db
+    .select({
+      id: schema.applications.id,
+      stage: schema.applications.stage,
+      jobId: schema.applications.jobId,
+      jobTitle: schema.jobListings.title,
+      updatedAt: schema.applications.updatedAt,
+    })
+    .from(schema.applications)
+    .innerJoin(schema.jobListings, eq(schema.jobListings.id, schema.applications.jobId))
+    .where(eq(schema.jobListings.companyId, companyId))
+    .orderBy(desc(schema.applications.updatedAt));
+  return rows.map((r) => ({ ...r, stage: r.stage as string }));
+}
+
+export async function getCompanyBySlug(slug: string): Promise<Company | null> {
+  const db = getDb();
+  const rows = await db
+    .select()
+    .from(schema.companies)
+    .where(eq(schema.companies.slug, slug))
+    .limit(1);
+  return rows[0] ?? null;
 }
