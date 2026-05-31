@@ -1,6 +1,7 @@
 import { countJobsByBand, listJobs, type ScoreBand } from "@/lib/repo/jobs";
 import { JobList } from "@/components/job-list";
 import { JobPasteForm } from "@/components/job-paste-form";
+import { JobUrlImport } from "@/components/job-url-import";
 import { JobsSearchForm } from "@/components/jobs-search-form";
 import Link from "next/link";
 
@@ -97,6 +98,7 @@ export default async function JobsPage({
           </summary>
           <div className="border-t border-[var(--border)] px-4 py-4 space-y-3">
             <JobsSearchForm />
+            <JobUrlImport />
             <JobPasteForm />
           </div>
         </details>
