@@ -190,6 +190,16 @@ export default async function SettingsPage() {
         <CheckList rows={d.portfolio} />
       </section>
 
+      <section className="rise space-y-3" data-delay="5">
+        <h2 className="text-lg font-semibold tracking-tight">Company intel (v3.2)</h2>
+        <p className="text-[12px] text-[var(--fg-3)]">
+          Sources used by the "Should you work here?" panel on every job. Free sources
+          (Wikidata, Nominatim, Clearbit) always run; Glassdoor needs an Apify actor id
+          you set in env.
+        </p>
+        <CheckList rows={d.companyIntel} />
+      </section>
+
       <section className="rise space-y-3" data-delay="6">
         <h2 className="text-lg font-semibold tracking-tight">Automation</h2>
         <div className="grid sm:grid-cols-2 gap-3">

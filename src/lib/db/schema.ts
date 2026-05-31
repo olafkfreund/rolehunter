@@ -575,6 +575,14 @@ export const companies = pgTable(
     wikidataId: text("wikidata_id"),
     linkedinUrl: text("linkedin_url"),
     glassdoorUrl: text("glassdoor_url"),
+    // Glassdoor enrichment (v3.2 slice 3 — populated via Apify)
+    glassdoorRating: numeric("glassdoor_rating", { precision: 3, scale: 2 }),
+    glassdoorReviewCount: integer("glassdoor_review_count"),
+    glassdoorRecommendPct: smallint("glassdoor_recommend_pct"),
+    glassdoorCeoApprovalPct: smallint("glassdoor_ceo_approval_pct"),
+    glassdoorTopPro: text("glassdoor_top_pro"),
+    glassdoorTopCon: text("glassdoor_top_con"),
+    glassdoorSyncedAt: timestamp("glassdoor_synced_at"),
     // Layoffs.fyi flags
     hasRecentLayoff: boolean("has_recent_layoff").notNull().default(false),
     lastLayoffAt: timestamp("last_layoff_at"),

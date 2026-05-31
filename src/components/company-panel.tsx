@@ -145,6 +145,84 @@ export function CompanyPanel({
             </p>
           )}
 
+          {/* Glassdoor section — only renders if rating data exists */}
+          {company.glassdoorRating != null && (
+            <div className="rounded-md border border-[var(--border)] px-3 py-3 space-y-2 bg-[var(--bg)]">
+              <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-[var(--accent)] text-[20px] leading-none">★</span>
+                  <span className="text-[18px] font-medium font-mono">
+                    {Number(company.glassdoorRating).toFixed(1)}
+                  </span>
+                  <span className="text-[11px] text-[var(--fg-3)]">
+                    / 5 on Glassdoor
+                  </span>
+                  {company.glassdoorReviewCount != null && (
+                    <span className="text-[11px] text-[var(--fg-4)] mono">
+                      ({company.glassdoorReviewCount.toLocaleString()} reviews)
+                    </span>
+                  )}
+                </div>
+                {company.glassdoorUrl && (
+                  <a
+                    href={company.glassdoorUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-[var(--fg-3)] hover:text-[var(--accent)] hover:underline"
+                  >
+                    open ↗
+                  </a>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-[var(--fg-3)]">
+                {company.glassdoorRecommendPct != null && (
+                  <span>
+                    <span className="mono">{company.glassdoorRecommendPct}%</span> would
+                    recommend
+                  </span>
+                )}
+                {company.glassdoorCeoApprovalPct != null && (
+                  <span>
+                    <span className="mono">{company.glassdoorCeoApprovalPct}%</span> CEO
+                    approval
+                  </span>
+                )}
+              </div>
+
+              {(company.glassdoorTopPro || company.glassdoorTopCon) && (
+                <div className="grid sm:grid-cols-2 gap-2 mt-1">
+                  {company.glassdoorTopPro && (
+                    <div className="text-[12px]">
+                      <div className="text-[10px] uppercase tracking-wider text-[var(--ok)] mb-0.5">
+                        top pro
+                      </div>
+                      <div
+                        className="text-[var(--fg-2)] leading-snug"
+                        style={{ fontFamily: "var(--font-serif)" }}
+                      >
+                        {company.glassdoorTopPro}
+                      </div>
+                    </div>
+                  )}
+                  {company.glassdoorTopCon && (
+                    <div className="text-[12px]">
+                      <div className="text-[10px] uppercase tracking-wider text-[var(--warn)] mb-0.5">
+                        top con
+                      </div>
+                      <div
+                        className="text-[var(--fg-2)] leading-snug"
+                        style={{ fontFamily: "var(--font-serif)" }}
+                      >
+                        {company.glassdoorTopCon}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="grid sm:grid-cols-2 gap-2 text-[12px]">
             {company.hasRecentLayoff ? (
               <div
@@ -204,6 +282,21 @@ export function CompanyPanel({
               </div>
             )}
           </div>
+
+          {company.glassdoorRating == null && (
+            <div className="text-[10px] text-[var(--fg-4)] leading-relaxed">
+              Set <code className="font-mono">APIFY_GLASSDOOR_ACTOR_ID</code> in your env to
+              unlock Glassdoor rating, review count, recommend %, CEO approval, and top
+              pro/con on the next Refresh. See{" "}
+              <a
+                href="/settings"
+                className="text-[var(--accent)] hover:underline"
+              >
+                /settings
+              </a>
+              .
+            </div>
+          )}
 
           {company.enrichmentSyncedAt && (
             <div className="text-[10px] text-[var(--fg-4)] font-mono">
