@@ -38,6 +38,7 @@ const nav = [
   { href: "/jobs", label: "Jobs" },
   { href: "/search", label: "Searches" },
   { href: "/portfolio", label: "Portfolio" },
+  { href: "/cv", label: "CV" },
   { href: "/applications", label: "Applications" },
   { href: "/interviews", label: "Interviews" },
   { href: "/gaps", label: "Gaps" },
