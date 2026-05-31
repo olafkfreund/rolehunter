@@ -134,55 +134,173 @@ function scoreExperience(job: JobListing, cv: CvJson | null): FitDimension {
   };
 }
 
-// Culture cues — keyword chips we surface as "detected"; we don't score
-// against user preferences because the user hasn't told us their preferences
-// yet (slice 9 of #43 adds /settings/company-prefs).
-const CULTURE_KEYWORDS: Array<{ key: string; rx: RegExp; positive: boolean }> = [
-  { key: "remote-first", rx: /\b(remote[- ]first|fully remote|100% remote)\b/i, positive: true },
-  { key: "hybrid", rx: /\bhybrid\b/i, positive: true },
-  { key: "in-office", rx: /\b(in[- ]office|on[- ]site|onsite)\b/i, positive: false },
-  { key: "async", rx: /\basynchronous\b|\basync(?:[- ]first| communication)\b/i, positive: true },
-  { key: "ownership", rx: /\b(ownership|own[- ]your|end[- ]to[- ]end ownership)\b/i, positive: true },
-  { key: "fast-paced", rx: /\bfast[- ]paced\b/i, positive: false },
-  { key: "ambiguity", rx: /\b(ambiguity|comfortable with ambiguity|loosely defined)\b/i, positive: false },
-  { key: "scale", rx: /\b(at scale|massive scale|hyper[- ]scale)\b/i, positive: true },
-  { key: "well-funded", rx: /\b(series [a-d]|recently funded|well[- ]funded)\b/i, positive: true },
-  { key: "early-stage", rx: /\b(early stage|stealth|seed stage|pre[- ]product)\b/i, positive: false },
+// Culture cue vocabulary. `positive` is the default lean for users who
+// haven't expressed a preference yet; once they set culture_likes /
+// culture_avoids on /profile, those override the default lean.
+//
+// Exported so the profile UI can render exactly these keys as chips —
+// keeps the vocabulary in one place.
+export const CULTURE_KEYWORDS: Array<{
+  key: string;
+  label: string;
+  rx: RegExp;
+  positive: boolean;
+}> = [
+  {
+    key: "remote-first",
+    label: "Remote-first",
+    rx: /\b(remote[- ]first|fully remote|100% remote)\b/i,
+    positive: true,
+  },
+  { key: "hybrid", label: "Hybrid", rx: /\bhybrid\b/i, positive: true },
+  {
+    key: "in-office",
+    label: "In-office",
+    rx: /\b(in[- ]office|on[- ]site|onsite)\b/i,
+    positive: false,
+  },
+  {
+    key: "async",
+    label: "Async-first",
+    rx: /\basynchronous\b|\basync(?:[- ]first| communication)\b/i,
+    positive: true,
+  },
+  {
+    key: "ownership",
+    label: "Strong ownership",
+    rx: /\b(ownership|own[- ]your|end[- ]to[- ]end ownership)\b/i,
+    positive: true,
+  },
+  { key: "fast-paced", label: "Fast-paced", rx: /\bfast[- ]paced\b/i, positive: false },
+  {
+    key: "ambiguity",
+    label: "Ambiguity",
+    rx: /\b(ambiguity|comfortable with ambiguity|loosely defined)\b/i,
+    positive: false,
+  },
+  {
+    key: "scale",
+    label: "Massive scale",
+    rx: /\b(at scale|massive scale|hyper[- ]scale)\b/i,
+    positive: true,
+  },
+  {
+    key: "well-funded",
+    label: "Well-funded",
+    rx: /\b(series [a-d]|recently funded|well[- ]funded)\b/i,
+    positive: true,
+  },
+  {
+    key: "early-stage",
+    label: "Early stage",
+    rx: /\b(early stage|stealth|seed stage|pre[- ]product)\b/i,
+    positive: false,
+  },
 ];
 
-interface CultureDetection {
-  positive: string[];
-  caution: string[];
+export const CULTURE_KEYS = CULTURE_KEYWORDS.map((c) => c.key);
+
+function detectCultureCues(jd: string): string[] {
+  const found: string[] = [];
+  for (const c of CULTURE_KEYWORDS) {
+    if (c.rx.test(jd)) found.push(c.key);
+  }
+  return found;
 }
 
-function detectCulture(jd: string): CultureDetection {
-  const positive: string[] = [];
-  const caution: string[] = [];
-  for (const c of CULTURE_KEYWORDS) {
-    if (c.rx.test(jd)) {
-      (c.positive ? positive : caution).push(c.key);
+function detectWorkMode(jd: string): "remote" | "hybrid" | "onsite" | "unknown" {
+  if (/\b(remote[- ]first|fully remote|100% remote|wfh)\b/i.test(jd)) return "remote";
+  if (/\bhybrid\b/i.test(jd)) return "hybrid";
+  if (/\b(on[- ]site|onsite|in[- ]office)\b/i.test(jd)) return "onsite";
+  return "unknown";
+}
+
+function scoreCulture(job: JobListing, profile: Profile | null): FitDimension {
+  const fullText = `${job.title}\n${job.description}\n${job.location ?? ""}`;
+  const detected = detectCultureCues(fullText);
+  const evidence: string[] = [];
+
+  const likes = ((profile?.cultureLikes as unknown as string[]) ?? []).filter(
+    (v) => typeof v === "string",
+  );
+  const avoids = ((profile?.cultureAvoids as unknown as string[]) ?? []).filter(
+    (v) => typeof v === "string",
+  );
+  const workPref = profile?.workModePreference ?? "any";
+  const hasPrefs = likes.length > 0 || avoids.length > 0 || (workPref && workPref !== "any");
+
+  if (!hasPrefs) {
+    // No user prefs → keep the old "detected" heuristic. 60 baseline; positive
+    // cues lift, default-negative cues drag.
+    const positive = detected.filter(
+      (k) => CULTURE_KEYWORDS.find((c) => c.key === k)?.positive,
+    );
+    const caution = detected.filter(
+      (k) => !CULTURE_KEYWORDS.find((c) => c.key === k)?.positive,
+    );
+    if (positive.length > 0) evidence.push(`detected: ${positive.join(", ")}`);
+    if (caution.length > 0) evidence.push(`watch for: ${caution.join(", ")}`);
+    if (detected.length === 0)
+      evidence.push("No culture cues detected — set preferences in /profile to score.");
+    if (detected.length === 0)
+      return { key: "culture", label: "Culture cues", score: -1, band: "n/a", evidence };
+    const raw = 60 + positive.length * 10 - caution.length * 8;
+    const score = Math.max(0, Math.min(100, raw));
+    return { key: "culture", label: "Culture cues", score, band: bandFor(score), evidence };
+  }
+
+  // User has expressed preferences. Score against them.
+  const matchedLikes = detected.filter((k) => likes.includes(k));
+  const triggeredAvoids = detected.filter((k) => avoids.includes(k));
+  const neutralCues = detected.filter(
+    (k) => !likes.includes(k) && !avoids.includes(k),
+  );
+
+  let score = 60;
+  score += matchedLikes.length * 12;
+  score -= triggeredAvoids.length * 15;
+  // Neutral cues nudge using the default positive/negative lean, lightly.
+  for (const k of neutralCues) {
+    const def = CULTURE_KEYWORDS.find((c) => c.key === k);
+    if (def) score += def.positive ? 3 : -3;
+  }
+
+  // Work-mode penalty (capped).
+  let workCap: number | null = null;
+  if (workPref && workPref !== "any" && workPref !== "unknown") {
+    const jdMode = detectWorkMode(fullText);
+    if (jdMode !== "unknown" && jdMode !== workPref) {
+      // Hard mismatch: remote-only user looking at onsite-only role.
+      if (
+        (workPref === "remote" && jdMode === "onsite") ||
+        (workPref === "onsite" && jdMode === "remote")
+      ) {
+        workCap = 25;
+        evidence.push(`work-mode mismatch — you prefer ${workPref}, JD is ${jdMode} (capped 25)`);
+      } else {
+        // Softer mismatch (hybrid <-> remote/onsite).
+        score -= 15;
+        evidence.push(`work-mode mismatch — you prefer ${workPref}, JD is ${jdMode} (-15)`);
+      }
     }
   }
-  return { positive, caution };
+
+  if (matchedLikes.length > 0)
+    evidence.push(`✓ matches: ${matchedLikes.map(prettyCueKey).join(", ")}`);
+  if (triggeredAvoids.length > 0)
+    evidence.push(`✗ triggers avoids: ${triggeredAvoids.map(prettyCueKey).join(", ")}`);
+  if (matchedLikes.length === 0 && triggeredAvoids.length === 0 && neutralCues.length === 0) {
+    evidence.push("No culture cues detected in this JD against your preferences.");
+  }
+
+  score = Math.max(0, Math.min(100, score));
+  if (workCap !== null) score = Math.min(score, workCap);
+
+  return { key: "culture", label: "Culture cues", score, band: bandFor(score), evidence };
 }
 
-function scoreCulture(job: JobListing): FitDimension {
-  const cues = detectCulture(job.description);
-  const total = cues.positive.length + cues.caution.length;
-  const evidence: string[] = [];
-  if (cues.positive.length > 0) evidence.push(`detected: ${cues.positive.join(", ")}`);
-  if (cues.caution.length > 0) evidence.push(`watch for: ${cues.caution.join(", ")}`);
-  if (total === 0) evidence.push("No culture cues detected — JD is generic.");
-  // Score: 60 baseline + 10 per positive cue, -8 per caution.
-  const raw = 60 + cues.positive.length * 10 - cues.caution.length * 8;
-  const score = Math.max(0, Math.min(100, raw));
-  return {
-    key: "culture",
-    label: "Culture cues",
-    score: total === 0 ? -1 : score,
-    band: total === 0 ? "n/a" : bandFor(score),
-    evidence,
-  };
+function prettyCueKey(k: string): string {
+  return CULTURE_KEYWORDS.find((c) => c.key === k)?.label ?? k;
 }
 
 // Normalise a band to annual-equivalent using rough single-earner heuristics.
@@ -373,7 +491,7 @@ export function computeFitReport(
   const dimensions: FitDimension[] = [
     scoreSkills(skills),
     scoreExperience(job, cv),
-    scoreCulture(job),
+    scoreCulture(job, profile),
     scoreCompensation(job, profile),
     scoreLogistics(job, company, profile),
   ];

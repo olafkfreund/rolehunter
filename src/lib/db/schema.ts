@@ -78,6 +78,15 @@ export const profile = pgTable("profile", {
   salaryTargetMax: integer("salary_target_max"),
   salaryTargetCurrency: varchar("salary_target_currency", { length: 8 }),
   salaryTargetPeriod: varchar("salary_target_period", { length: 16 }), // annual|monthly|daily|hourly
+  // v3.2 — culture preferences (#43 follow-up). Profile-driven so the role-fit
+  // dashboard's Culture dimension scores against what the user actually wants.
+  // `workModePreference` ∈ {remote, hybrid, onsite, any}; "any" = no penalty.
+  // `cultureLikes` / `cultureAvoids` are arrays of keyword keys from the
+  // CULTURE_KEYWORDS vocabulary in src/lib/jobs/fit-score.ts.
+  workModePreference: varchar("work_mode_preference", { length: 16 }),
+  maxOfficeDaysPerWeek: smallint("max_office_days_per_week"),
+  cultureLikes: jsonb("culture_likes").notNull().default([]),
+  cultureAvoids: jsonb("culture_avoids").notNull().default([]),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
