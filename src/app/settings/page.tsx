@@ -3,6 +3,8 @@ import { getDiagnostics } from "@/lib/settings/diagnostics";
 import type { CheckRow } from "@/lib/settings/diagnostics";
 import { listSettingStates } from "@/lib/settings/runtime";
 import { SettingsEditor } from "@/components/settings-editor";
+import { DangerZone } from "@/components/danger-zone";
+import { BackfillDescriptionsButton } from "@/components/backfill-descriptions-button";
 
 export const dynamic = "force-dynamic";
 
@@ -285,6 +287,15 @@ export default async function SettingsPage() {
             </Link>
           </div>
         </div>
+      </section>
+
+      <section className="rise space-y-3" data-delay="7">
+        <h2 className="text-lg font-semibold tracking-tight">Maintenance</h2>
+        <BackfillDescriptionsButton />
+      </section>
+
+      <section className="rise space-y-3" data-delay="8">
+        <DangerZone />
       </section>
 
       <section className="text-[11px] text-[var(--fg-4)] font-mono pt-6 border-t border-[var(--border)]">
