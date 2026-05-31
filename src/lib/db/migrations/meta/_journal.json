@@ -57,6 +57,13 @@
       "when": 1780231206915,
       "tag": "0007_v3_backfill",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1780236419200,
+      "tag": "0008_v3_ats_enum",
+      "breakpoints": true
     }
   ]
 }

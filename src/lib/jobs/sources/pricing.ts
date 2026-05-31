@@ -19,6 +19,9 @@ const BASE_PRICING: Record<BudgetKey, PricingEntry> = {
   dice:       { perCall: 0,      unit: "free" },
   jobspy:     { perCall: 0,      unit: "free-library" },
   apify:      { perCall: 0.05,   unit: "usd-per-actor-run" },
+  greenhouse: { perCall: 0,      unit: "free-public-api" },
+  lever:      { perCall: 0,      unit: "free-public-api" },
+  workday:    { perCall: 0,      unit: "free-public-json" },
   auto_score: { perCall: 0.0008, unit: "usd-claude-haiku" },
 };
 

@@ -8,10 +8,13 @@
 // doesn't crash the module load.
 
 import { createAdzunaAdapter } from "./adzuna";
+import { createGreenhouseAdapter } from "./greenhouse";
 import { createJobSpyAdapter } from "./jobspy";
 import { createJSearchAdapter } from "./jsearch";
+import { createLeverAdapter } from "./lever";
 import { createLinkedInAdapter } from "./linkedin";
 import { createPasteAdapter } from "./paste";
+import { createWorkdayAdapter } from "./workday";
 import { register } from "./registry";
 
 let registered = false;
@@ -24,6 +27,9 @@ export function ensureAdaptersRegistered(): void {
   register("paste", createPasteAdapter);
   register("jobspy", createJobSpyAdapter);
   register("adzuna", createAdzunaAdapter);
+  register("greenhouse", createGreenhouseAdapter);
+  register("lever", createLeverAdapter);
+  register("workday", createWorkdayAdapter);
   // v3.0 follow-up branches add:
   //   register("indeed", createIndeedAdapter);
   //   register("dice", createDiceAdapter);
