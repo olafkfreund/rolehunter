@@ -46,15 +46,17 @@ function buildHref(
 export default async function JobsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ band?: string; fit?: string; sort?: string }>;
+  searchParams: Promise<{ band?: string; fit?: string; sort?: string; show?: string }>;
 }) {
   const sp = await searchParams;
   const band = parseBand(sp.band);
   const fitBand = parseBand(sp.fit);
   const sort = parseSort(sp.sort);
+  const visibility: "active" | "hidden" | "all" =
+    sp.show === "hidden" ? "hidden" : sp.show === "all" ? "all" : "active";
 
   const [jobs, counts, fitCounts] = await Promise.all([
-    listJobs({ band, fitBand, sort }),
+    listJobs({ band, fitBand, sort, visibility }),
     countJobsByBand(),
     countJobsByFitBand(),
   ]);
@@ -83,7 +85,12 @@ export default async function JobsPage({
   ];
 
   const activeScoreChip = scoreChips.find((c) => c.id === band);
-  const baseParams = { band: sp.band, fit: sp.fit, sort: sp.sort };
+  const baseParams = { band: sp.band, fit: sp.fit, sort: sp.sort, show: sp.show };
+  const visibilityChips: { id: "active" | "hidden" | "all"; label: string }[] = [
+    { id: "active", label: "active" },
+    { id: "hidden", label: "hidden" },
+    { id: "all", label: "all" },
+  ];
 
   return (
     <div className="space-y-8">
@@ -162,6 +169,31 @@ export default async function JobsPage({
                   <span className="font-mono text-[10px] text-[var(--fg-4)]">
                     {fitCounts[c.id]?.toLocaleString() ?? 0}
                   </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className="text-[10px] uppercase tracking-wider text-[var(--fg-3)] font-mono">
+              show
+            </span>
+            <div className="flex gap-1">
+              {visibilityChips.map((c) => (
+                <Link
+                  key={c.id}
+                  href={buildHref(baseParams, { show: c.id === "active" ? null : c.id })}
+                  className="px-2 py-1 text-[11px] rounded-md border transition-colors"
+                  style={{
+                    borderColor: visibility === c.id ? "var(--accent)" : "var(--border)",
+                    color: visibility === c.id ? "var(--fg)" : "var(--fg-3)",
+                    background:
+                      visibility === c.id
+                        ? "color-mix(in srgb, var(--accent) 8%, transparent)"
+                        : undefined,
+                  }}
+                >
+                  {c.label}
                 </Link>
               ))}
             </div>

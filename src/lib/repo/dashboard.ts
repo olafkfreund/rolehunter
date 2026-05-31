@@ -75,6 +75,8 @@ export async function getTopScoredMatches(
 
   // Dedup by job_id using a window function: keep the highest-scoring
   // match per job, ordered by score desc then most recent.
+  // Exclude hidden jobs so /jobs and the dashboard agree on what's
+  // worth surfacing.
   const matchesResult = await db.execute(sql`
     SELECT match_id, score, provider, created_at, job_id, job_title, company, location
     FROM (
@@ -93,6 +95,7 @@ export async function getTopScoredMatches(
         ) AS rn
       FROM matches m
       INNER JOIN job_listings j ON j.id = m.job_id
+      WHERE j.hidden = false
     ) t
     WHERE rn = 1
     ORDER BY score DESC, created_at DESC
