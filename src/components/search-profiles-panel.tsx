@@ -14,9 +14,12 @@ type SourceId =
   | "dice"
   | "jobspy"
   | "apify"
-  | "paste";
+  | "paste"
+  | "greenhouse"
+  | "lever"
+  | "workday";
 
-const SOURCES: { id: SourceId; label: string }[] = [
+const SOURCES: { id: SourceId; label: string; needsCompanies?: boolean }[] = [
   { id: "jsearch", label: "JSearch" },
   { id: "linkedin", label: "LinkedIn (RapidAPI)" },
   { id: "jobspy", label: "JobSpy (LI+Indeed scrape)" },
@@ -24,7 +27,12 @@ const SOURCES: { id: SourceId; label: string }[] = [
   { id: "indeed", label: "Indeed (MCP)" },
   { id: "dice", label: "Dice (MCP)" },
   { id: "apify", label: "Apify on-demand" },
+  { id: "greenhouse", label: "Greenhouse (ATS)", needsCompanies: true },
+  { id: "lever", label: "Lever (ATS)", needsCompanies: true },
+  { id: "workday", label: "Workday (ATS)", needsCompanies: true },
 ];
+
+const ATS_SOURCES: SourceId[] = ["greenhouse", "lever", "workday"];
 
 const FREQUENCIES: { id: Frequency; label: string }[] = [
   { id: "hourly", label: "Hourly" },
@@ -46,6 +54,7 @@ interface FormState {
   salaryMin: string;
   salaryCurrency: string;
   sources: SourceId[];
+  companies: string;
   frequency: Frequency;
   remoteModes: RemoteMode[];
 }
@@ -77,6 +86,7 @@ const EMPTY_FORM: FormState = {
   salaryMin: "",
   salaryCurrency: "GBP",
   sources: ["jsearch"],
+  companies: "",
   frequency: "daily",
   remoteModes: ["remote", "hybrid"],
 };
@@ -153,6 +163,15 @@ export function SearchProfilesPanel({
       setError("Select at least one source.");
       return;
     }
+    const usesAts = form.sources.some((s) => ATS_SOURCES.includes(s));
+    const companiesList = form.companies
+      .split(/[,\n]/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (usesAts && companiesList.length === 0) {
+      setError("ATS sources (Greenhouse / Lever / Workday) require at least one company in the Companies field.");
+      return;
+    }
     setBusy(true);
     try {
       const body = {
@@ -162,6 +181,7 @@ export function SearchProfilesPanel({
         salaryMinUsd: form.salaryMin ? Number(form.salaryMin) : undefined,
         salaryCurrency: form.salaryCurrency,
         sources: form.sources,
+        companies: companiesList,
         frequency: form.frequency,
         remoteModes: form.remoteModes,
       };
@@ -327,7 +347,8 @@ export function SearchProfilesPanel({
                       on
                         ? "border-[var(--foreground)] bg-[var(--foreground)] text-[var(--background)]"
                         : "border-[var(--border)] bg-[var(--background)] hover:bg-[var(--muted)]"
-                    }`}
+                    } ${s.needsCompanies ? "italic" : ""}`}
+                    title={s.needsCompanies ? "Requires Companies field below" : undefined}
                   >
                     {s.label}
                   </button>
@@ -335,6 +356,25 @@ export function SearchProfilesPanel({
               })}
             </div>
           </div>
+
+          {form.sources.some((s) => ATS_SOURCES.includes(s)) && (
+            <div className="space-y-1">
+              <span className="text-xs font-medium text-[var(--muted-foreground)]">
+                Companies * (required for ATS sources — comma or newline separated)
+              </span>
+              <textarea
+                value={form.companies}
+                onChange={(e) => setForm({ ...form, companies: e.target.value })}
+                placeholder="stripe, datadog, anthropic&#10;# Workday: use tenant/site format&#10;nvidia/External"
+                rows={3}
+                className="w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-sm font-mono"
+              />
+              <div className="text-[10px] text-[var(--muted-foreground)]">
+                Greenhouse / Lever: company slug (e.g. <code>stripe</code>). Workday:{" "}
+                <code>tenant/site</code> (e.g. <code>nvidia/External</code>).
+              </div>
+            </div>
+          )}
 
           <div className="space-y-1">
             <span className="text-xs font-medium text-[var(--muted-foreground)]">Remote modes</span>

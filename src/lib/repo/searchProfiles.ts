@@ -14,6 +14,8 @@ export type CreateProfileInput = {
   experienceLevels?: string[];
   jobTypes?: string[];
   sources: string[];
+  /** For ATS-direct adapters (greenhouse/lever/workday): per-source company spec. */
+  companies?: string[];
   frequency: "hourly" | "every_4h" | "daily" | "weekly";
   maxResultsPerRun?: number;
   active?: boolean;
@@ -53,6 +55,7 @@ export async function createProfile(input: CreateProfileInput): Promise<SearchPr
       experienceLevels: input.experienceLevels ?? [],
       jobTypes: input.jobTypes ?? [],
       sources: input.sources,
+      companies: input.companies ?? [],
       frequency: input.frequency,
       maxResultsPerRun: input.maxResultsPerRun ?? 50,
       active: input.active ?? true,
@@ -78,6 +81,7 @@ export async function updateProfile(
   if (patch.experienceLevels !== undefined) updates.experienceLevels = patch.experienceLevels;
   if (patch.jobTypes !== undefined) updates.jobTypes = patch.jobTypes;
   if (patch.sources !== undefined) updates.sources = patch.sources;
+  if (patch.companies !== undefined) updates.companies = patch.companies;
   if (patch.frequency !== undefined) updates.frequency = patch.frequency;
   if (patch.maxResultsPerRun !== undefined) updates.maxResultsPerRun = patch.maxResultsPerRun;
   if (patch.active !== undefined) updates.active = patch.active;

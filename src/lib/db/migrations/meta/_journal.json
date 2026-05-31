@@ -64,6 +64,13 @@
       "when": 1780236419200,
       "tag": "0008_v3_ats_enum",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1780236878964,
+      "tag": "0009_v3_companies",
+      "breakpoints": true
     }
   ]
 }

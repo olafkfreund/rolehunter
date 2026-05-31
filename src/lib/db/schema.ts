@@ -405,6 +405,12 @@ export const searchProfiles = pgTable(
     experienceLevels: jsonb("experience_levels").notNull().default([]),
     jobTypes: jsonb("job_types").notNull().default([]),
     sources: jsonb("sources").notNull(),
+    /**
+     * Per-profile company list for ATS-direct adapters (greenhouse / lever / workday).
+     * Format depends on the source: company slug for Greenhouse/Lever, "tenant/site"
+     * for Workday. Ignored by query-based adapters (jsearch, linkedin, adzuna, etc).
+     */
+    companies: jsonb("companies").notNull().default([]),
     frequency: profileFrequencyEnum("frequency").notNull().default("daily"),
     maxResultsPerRun: integer("max_results_per_run").notNull().default(50),
     active: boolean("active").notNull().default(true),

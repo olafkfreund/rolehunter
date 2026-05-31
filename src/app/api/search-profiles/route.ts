@@ -14,6 +14,9 @@ const VALID_SOURCES = [
   "dice",
   "jobspy",
   "apify",
+  "greenhouse",
+  "lever",
+  "workday",
 ] as const;
 
 const VALID_REMOTE = ["remote", "hybrid", "onsite"] as const;
@@ -30,6 +33,7 @@ const createSchema = z.object({
   experienceLevels: z.array(z.string()).optional(),
   jobTypes: z.array(z.string()).optional(),
   sources: z.array(z.enum(VALID_SOURCES)).min(1, "At least one source required"),
+  companies: z.array(z.string().trim().min(1).max(200)).max(50).optional(),
   frequency: z.enum(["hourly", "every_4h", "daily", "weekly"]),
   maxResultsPerRun: z.coerce.number().int().min(1).max(200).optional(),
   active: z.coerce.boolean().optional(),
