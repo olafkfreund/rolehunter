@@ -6,6 +6,11 @@ const schema = z.object({
   GEMINI_API_KEY: z.string().optional().default(""),
   JSEARCH_RAPIDAPI_KEY: z.string().optional().default(""),
   LINKEDIN_RAPIDAPI_HOST: z.string().default("linkedin-job-search-api.p.rapidapi.com"),
+  ADZUNA_APP_ID: z.string().optional().default(""),
+  ADZUNA_APP_KEY: z.string().optional().default(""),
+  ADZUNA_DEFAULT_COUNTRY: z
+    .enum(["gb", "us", "au", "br", "ca", "de", "fr", "in", "it", "mx", "nl", "nz", "pl", "ru", "sg", "za"])
+    .default("gb"),
   DEFAULT_LLM_PROVIDER: z.enum(["claude", "gemini", "openai", "ollama"]).default("claude"),
   CLAUDE_MODEL: z.string().default("claude-sonnet-4-6"),
   GEMINI_MODEL: z.string().default("gemini-2.5-pro"),
