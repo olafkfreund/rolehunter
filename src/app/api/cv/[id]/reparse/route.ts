@@ -23,7 +23,7 @@ export const POST = wrap(
     if (id === null) {
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
     }
-    let provider: "claude" | "gemini" | undefined;
+    let provider: "claude" | "gemini" | "openai" | "ollama" | undefined;
     try {
       const text = await req.text();
       if (text) {

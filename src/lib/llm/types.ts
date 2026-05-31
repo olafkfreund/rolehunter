@@ -1,4 +1,4 @@
-export type Provider = "claude" | "gemini";
+export type Provider = "claude" | "gemini" | "openai" | "ollama";
 
 export interface CvJson {
   fullName?: string;

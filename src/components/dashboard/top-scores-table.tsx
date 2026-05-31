@@ -5,7 +5,7 @@ import { ScoreGauge } from "@/components/score-gauge";
 type TopMatch = {
   matchId: number;
   score: number;
-  provider: "claude" | "gemini";
+  provider: "claude" | "gemini" | "openai" | "ollama";
   createdAt: string;
   jobId: number;
   jobTitle: string;
