@@ -142,7 +142,7 @@ export default async function JobDetailPage({
       </header>
 
       <FitDashboard
-        report={computeFitReport(
+        report={await computeFitReport(
           job,
           (activeCv?.parsedJson ?? null) as CvJson | null,
           company,

@@ -61,13 +61,20 @@ export const TECH_TOKENS = [
   "Microservices", "Event-driven", "Serverless",
 ];
 
-const TOKEN_REGEXES = TECH_TOKENS.map((t) => ({
-  token: t,
-  regex: new RegExp(
-    `\\b${t.replace(/[.+#\-()*]/g, "\\$&").replace(/\s+/g, "\\s+")}\\b`,
-    "i",
-  ),
-}));
+// Word-boundary regex per token. `\b` works on word chars only, which fails
+// for tokens ending in non-word chars like `C++`, `C#`, `F#`. For those we
+// substitute a non-word lookahead/-behind so adjacent text doesn't bleed in.
+const TOKEN_REGEXES = TECH_TOKENS.map((t) => {
+  const escaped = t.replace(/[.+#\-()*]/g, "\\$&").replace(/\s+/g, "\\s+");
+  const startsWordChar = /^\w/.test(t);
+  const endsWordChar = /\w$/.test(t);
+  const left = startsWordChar ? "\\b" : "(?:^|[^A-Za-z0-9])";
+  const right = endsWordChar ? "\\b" : "(?:$|[^A-Za-z0-9])";
+  return {
+    token: t,
+    regex: new RegExp(`${left}${escaped}${right}`, "i"),
+  };
+});
 
 export function extractTechTokens(text: string): string[] {
   if (!text || text.length === 0) return [];
