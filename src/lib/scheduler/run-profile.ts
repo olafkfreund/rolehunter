@@ -28,6 +28,7 @@ const ADAPTER_TIMEOUT_MS = 120_000;
 ensureAdaptersRegistered();
 
 function profileToParams(profile: SearchProfile): SearchParams {
+  const companies = (profile.companies as string[] | null) ?? [];
   return {
     query: profile.query,
     location: profile.location || undefined,
@@ -38,6 +39,7 @@ function profileToParams(profile: SearchProfile): SearchParams {
     experienceLevels: (profile.experienceLevels as string[] | null) ?? undefined,
     jobTypes: (profile.jobTypes as string[] | null) ?? undefined,
     maxResults: profile.maxResultsPerRun,
+    targetCompanies: companies.length > 0 ? companies : undefined,
   };
 }
 
