@@ -25,6 +25,9 @@ const schema = z.object({
   LEARN_RESOURCES_PROVIDER: z.string().optional().default(""),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   UPLOAD_DIR: z.string().default("/app/uploads"),
+  // v3.0 scheduler
+  ENABLE_SCHEDULER: z.string().optional().default(""),
+  SCHEDULER_BATCH_SIZE: z.coerce.number().int().min(1).max(100).default(10),
 });
 
 export type Env = z.infer<typeof schema>;
