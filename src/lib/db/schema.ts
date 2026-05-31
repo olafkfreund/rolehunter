@@ -599,3 +599,21 @@ export const companies = pgTable(
 );
 
 export type Company = typeof companies.$inferSelect;
+
+// ─────────────────────────────────────────────────────────────────────────
+// v3.2 slice 4 — app_settings (#43 + user request 2026-05-31)
+//
+// Key/value store for runtime-editable settings so the Docker image ships
+// without needing .env edits. Values can be set via the /settings UI or via
+// the first-run wizard at /welcome. Reads fall back to process.env when no
+// row exists, so existing .env-based deployments keep working.
+
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  isSecret: boolean("is_secret").notNull().default(false),
+  description: text("description"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type AppSetting = typeof appSettings.$inferSelect;
