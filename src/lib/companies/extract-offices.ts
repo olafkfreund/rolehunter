@@ -167,3 +167,73 @@ export async function extractOfficesFromJobs(
 
   return { scanned: candidates.length, written };
 }
+
+export interface BatchOfficeResult {
+  companyId: number;
+  name: string;
+  scanned: number;
+  written: number;
+  error?: string;
+}
+
+interface BatchOptions {
+  /** Cap the number of companies processed in one batch — keeps Nominatim
+   *  rate-limit safe and the request under the route timeout. */
+  limit?: number;
+  /** Tiny delay between companies (Nominatim asks for 1 req/sec; the
+   *  geocode() helper does the per-city pacing inside extractOfficesFromJobs). */
+  perCompanyDelayMs?: number;
+}
+
+/**
+ * Walk every enriched company and run extractOfficesFromJobs on it. Used by
+ * the /api/admin/refresh-offices backfill button on /companies.
+ *
+ * Returns per-company progress so the UI can show "X added across Y
+ * companies" on completion.
+ */
+export async function backfillAllCompanyOffices(
+  opts: BatchOptions = {},
+): Promise<{ processed: BatchOfficeResult[]; remaining: number }> {
+  const limit = opts.limit ?? 12;
+  const delay = opts.perCompanyDelayMs ?? 250;
+  const db = getDb();
+
+  // Pick companies that have actually been enriched (have an HQ geocoded
+  // or a Wikidata id) — there's no point extracting offices for a totally
+  // unenriched stub row.
+  const candidates = await db
+    .select({
+      id: schema.companies.id,
+      name: schema.companies.name,
+    })
+    .from(schema.companies)
+    .orderBy(schema.companies.id);
+
+  const processed: BatchOfficeResult[] = [];
+  const slice = candidates.slice(0, limit);
+  for (const c of slice) {
+    try {
+      const r = await extractOfficesFromJobs(c.id, { maxCities: 8 });
+      processed.push({
+        companyId: c.id,
+        name: c.name,
+        scanned: r.scanned,
+        written: r.written,
+      });
+    } catch (e) {
+      processed.push({
+        companyId: c.id,
+        name: c.name,
+        scanned: 0,
+        written: 0,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+    if (delay > 0) await new Promise((r) => setTimeout(r, delay));
+  }
+  return {
+    processed,
+    remaining: Math.max(0, candidates.length - slice.length),
+  };
+}

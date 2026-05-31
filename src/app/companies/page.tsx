@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { listCompanies } from "@/lib/repo/companies";
 import { CompanyLogo } from "@/components/company-logo";
+import { RefreshOfficesButton } from "@/components/refresh-offices-button";
 
 export const dynamic = "force-dynamic";
 
@@ -42,14 +43,17 @@ export default async function CompaniesPage({
         </p>
       </section>
 
-      <form className="rise" data-delay="2">
-        <input
-          name="q"
-          defaultValue={q}
-          placeholder="Filter by name or HQ…"
-          className="input w-full max-w-md font-mono text-sm"
-        />
-      </form>
+      <div className="rise flex flex-wrap gap-3 items-center" data-delay="2">
+        <form className="flex-1 min-w-[200px]">
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="Filter by name or HQ…"
+            className="input w-full max-w-md font-mono text-sm"
+          />
+        </form>
+        {companies.length > 0 && <RefreshOfficesButton />}
+      </div>
 
       {companies.length === 0 ? (
         <div className="card p-12 text-center rise" data-delay="3">
