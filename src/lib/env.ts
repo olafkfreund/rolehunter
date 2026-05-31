@@ -6,9 +6,23 @@ const schema = z.object({
   GEMINI_API_KEY: z.string().optional().default(""),
   JSEARCH_RAPIDAPI_KEY: z.string().optional().default(""),
   LINKEDIN_RAPIDAPI_HOST: z.string().default("linkedin-job-search-api.p.rapidapi.com"),
-  DEFAULT_LLM_PROVIDER: z.enum(["claude", "gemini"]).default("claude"),
+  DEFAULT_LLM_PROVIDER: z.enum(["claude", "gemini", "openai", "ollama"]).default("claude"),
   CLAUDE_MODEL: z.string().default("claude-sonnet-4-6"),
   GEMINI_MODEL: z.string().default("gemini-2.5-pro"),
+  // v3.0 LLM provider expansion (#47)
+  OPENAI_API_KEY: z.string().optional().default(""),
+  OPENAI_MODEL: z.string().default("gpt-4o-mini"),
+  OLLAMA_BASE_URL: z.string().default("http://localhost:11434"),
+  OLLAMA_MODEL: z.string().default("llama3.1:8b"),
+  AUTO_SCORE_PROVIDER: z.string().optional().default(""),
+  MATCH_PROVIDER: z.string().optional().default(""),
+  CV_REWRITE_PROVIDER: z.string().optional().default(""),
+  COVER_LETTER_PROVIDER: z.string().optional().default(""),
+  FLASHCARDS_PROVIDER: z.string().optional().default(""),
+  GAPS_PROVIDER: z.string().optional().default(""),
+  LINKEDIN_IMPORT_PROVIDER: z.string().optional().default(""),
+  LINKEDIN_SEO_PROVIDER: z.string().optional().default(""),
+  LEARN_RESOURCES_PROVIDER: z.string().optional().default(""),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   UPLOAD_DIR: z.string().default("/app/uploads"),
 });
@@ -35,11 +49,12 @@ export function hasProvider(p: "claude" | "gemini" | "openai" | "ollama"): boole
     case "gemini":
       return !!env.GEMINI_API_KEY;
     case "openai":
-      // OpenAI provider implementation lands in #47; key check ready ahead of time.
-      return !!process.env.OPENAI_API_KEY;
+      return !!env.OPENAI_API_KEY;
     case "ollama":
-      // Reachability probe lives in src/lib/llm/ollama.ts when that lands (#47).
-      // Returning false until then so existing fallback chain isn't surprised.
-      return false;
+      // Sync check: if the user has set OLLAMA_BASE_URL explicitly (or kept the
+      // default and intends to run it), treat ollama as available. Real
+      // unreachability surfaces at call time as a transient error and the
+      // caller (or the fallback chain via try/catch) handles it.
+      return !!env.OLLAMA_BASE_URL;
   }
 }
