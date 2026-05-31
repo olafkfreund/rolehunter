@@ -1,38 +1,520 @@
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────────────────────────────────
+ * RoleHunter Design System — "Editorial Terminal"
+ *
+ * Concept: Bloomberg Terminal density × literary magazine typesetting.
+ * Distinctive serif italic (Fraunces) for editorial labels, sharp Geist Sans
+ * for body, Geist Mono for ALL numerics. Warm near-black with one phosphor
+ * accent. Borders over shadows. Calm by default, dense by intent.
+ * ────────────────────────────────────────────────────────────────────────── */
+
 :root {
-  --background: #ffffff;
-  --foreground: #0a0a0a;
-  --muted: #f4f4f5;
-  --muted-foreground: #71717a;
-  --border: #e4e4e7;
-  --primary: #0f172a;
-  --primary-foreground: #f8fafc;
-  --accent: #6366f1;
-  --success: #16a34a;
-  --warning: #d97706;
-  --danger: #dc2626;
+  /* Palette — dark first; light vars set below mostly so older code doesn't break */
+  --bg:           #0c0b09;        /* warm near-black canvas */
+  --bg-elev:      #141210;        /* card surface — one click up */
+  --bg-elev-2:    #1c1a17;        /* hover / nested */
+  --bg-grain:     transparent;    /* texture overlay (defined as background-image below) */
+  --fg:           #f5f2eb;        /* warm off-white */
+  --fg-2:         #c8c2b6;        /* secondary text */
+  --fg-3:         #807a6f;        /* tertiary / metadata */
+  --fg-4:         #4a463f;        /* disabled / divider */
+
+  --border:       #25221e;        /* subtle 1px */
+  --border-hi:    #3a352e;        /* hovered / active borders */
+
+  /* Accents — single phosphor green for primary, otherwise neutral */
+  --accent:       #5cf08c;        /* terminal phosphor green */
+  --accent-fg:    #03150a;        /* text on accent */
+  --accent-dim:   #1e3a26;        /* low-key accent surface */
+
+  /* Semantic score bands */
+  --score-top:    #ff6b4a;        /* persimmon — top matches */
+  --score-stretch:#f0c050;        /* amber — stretch */
+  --score-pass:   #58514a;        /* muted — pass */
+  --score-none:   #2a2724;        /* unscored */
+
+  /* Status */
+  --ok:           #5cf08c;
+  --warn:         #f0c050;
+  --err:          #ff6b4a;
+
+  /* Backwards-compat aliases — existing components reference these */
+  --background:         var(--bg);
+  --foreground:         var(--fg);
+  --muted:              var(--bg-elev);
+  --muted-foreground:   var(--fg-3);
+  --primary:            var(--fg);
+  --primary-foreground: var(--bg);
+  --success:            var(--ok);
+  --warning:            var(--warn);
+  --danger:             var(--err);
+
+  /* Typography stacks (real families set via next/font in layout.tsx) */
+  --font-sans:    var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono:    var(--font-geist-mono), ui-monospace, "Courier New", monospace;
+  --font-serif:   var(--font-fraunces), Georgia, "Times New Roman", serif;
+
+  /* Type scale — modular, opinionated */
+  --t-xs:    11px;
+  --t-sm:    13px;
+  --t-base:  15px;     /* slightly larger than 14px default for legibility */
+  --t-lg:    17px;
+  --t-xl:    22px;
+  --t-2xl:   28px;
+  --t-3xl:   38px;     /* page titles use Fraunces */
+  --t-4xl:   56px;
+
+  /* Spacing — half-step granularity */
+  --sp-0:    0;
+  --sp-1:    4px;
+  --sp-2:    8px;
+  --sp-3:    12px;
+  --sp-4:    16px;
+  --sp-5:    24px;
+  --sp-6:    32px;
+  --sp-7:    48px;
+  --sp-8:    64px;
+
+  /* Border radii — kept tight; almost-square for that editorial feel */
+  --r-0:     0;
+  --r-sm:    2px;
+  --r:       4px;
+  --r-md:    6px;
+  --r-lg:    10px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #fafafa;
-    --muted: #1c1c1c;
-    --muted-foreground: #a1a1aa;
-    --border: #27272a;
-    --primary: #fafafa;
-    --primary-foreground: #0a0a0a;
-    --accent: #818cf8;
-  }
+/* ─── THEME: Editorial Light ──────────────────────────────────────────── */
+:root[data-theme="editorial-light"],
+[data-theme="editorial-light"] {
+  --bg:           #faf7f2;      /* warm ivory */
+  --bg-elev:      #f3eee5;
+  --bg-elev-2:    #ece6d9;
+  --fg:           #2b2620;
+  --fg-2:         #51483d;
+  --fg-3:         #837a6c;
+  --fg-4:         #b8ad9c;
+  --border:       #ddd5c4;
+  --border-hi:    #c4b9a3;
+  --accent:       #1f8a4c;      /* dark phosphor for readability on light */
+  --accent-fg:    #fafff0;
+  --accent-dim:   #c9eed3;
+  --score-top:    #d44a26;
+  --score-stretch:#b48a17;
+  --score-pass:   #a89e8a;
+  --score-none:   #e7dfcc;
+  --ok:  #1f8a4c;
+  --warn:#b48a17;
+  --err: #c43423;
+  --success: var(--ok);
+  --warning: var(--warn);
+  --danger:  var(--err);
+  --background: var(--bg); --foreground: var(--fg);
+  --muted: var(--bg-elev); --muted-foreground: var(--fg-3);
+  --primary: var(--fg); --primary-foreground: var(--bg);
+}
+
+/* ─── THEME: Gruvbox Dark ─────────────────────────────────────────────── */
+:root[data-theme="gruvbox-dark"],
+[data-theme="gruvbox-dark"] {
+  --bg:           #282828;      /* gruvbox bg0 */
+  --bg-elev:      #32302f;      /* bg0_soft */
+  --bg-elev-2:    #3c3836;      /* bg1 */
+  --fg:           #ebdbb2;      /* fg1 */
+  --fg-2:         #d5c4a1;      /* fg2 */
+  --fg-3:         #a89984;      /* gray */
+  --fg-4:         #7c6f64;      /* bg4 */
+  --border:       #3c3836;      /* bg1 */
+  --border-hi:    #504945;      /* bg2 */
+  --accent:       #b8bb26;      /* gruvbox bright_yellow */
+  --accent-fg:    #1d2021;      /* bg0_hard */
+  --accent-dim:   #4a4818;
+  --score-top:    #fb4934;      /* bright_red */
+  --score-stretch:#fabd2f;      /* bright_yellow alt */
+  --score-pass:   #928374;      /* gray */
+  --score-none:   #3c3836;
+  --ok:   #b8bb26;
+  --warn: #fabd2f;
+  --err:  #fb4934;
+  --success: var(--ok);
+  --warning: var(--warn);
+  --danger:  var(--err);
+  --background: var(--bg); --foreground: var(--fg);
+  --muted: var(--bg-elev); --muted-foreground: var(--fg-3);
+  --primary: var(--fg); --primary-foreground: var(--bg);
+}
+
+/* ─── THEME: Gruvbox Light ────────────────────────────────────────────── */
+:root[data-theme="gruvbox-light"],
+[data-theme="gruvbox-light"] {
+  --bg:           #fbf1c7;      /* gruvbox light bg0 */
+  --bg-elev:      #f2e5bc;      /* bg0_soft */
+  --bg-elev-2:    #ebdbb2;      /* bg1 */
+  --fg:           #3c3836;      /* fg1 dark */
+  --fg-2:         #504945;
+  --fg-3:         #7c6f64;
+  --fg-4:         #a89984;
+  --border:       #ebdbb2;
+  --border-hi:    #d5c4a1;
+  --accent:       #79740e;      /* gruvbox neutral_yellow */
+  --accent-fg:    #fbf1c7;
+  --accent-dim:   #e8e2a8;
+  --score-top:    #9d0006;      /* faded_red */
+  --score-stretch:#b57614;      /* faded_yellow */
+  --score-pass:   #928374;
+  --score-none:   #ebdbb2;
+  --ok:   #79740e;
+  --warn: #b57614;
+  --err:  #9d0006;
+  --success: var(--ok);
+  --warning: var(--warn);
+  --danger:  var(--err);
+  --background: var(--bg); --foreground: var(--fg);
+  --muted: var(--bg-elev); --muted-foreground: var(--fg-3);
+  --primary: var(--fg); --primary-foreground: var(--bg);
+}
+
+/* Light themes get a much subtler grain */
+[data-theme="editorial-light"] body::before,
+[data-theme="gruvbox-light"] body::before {
+  opacity: 0.02;
+  mix-blend-mode: multiply;
 }
 
 html, body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: var(--t-base);
+  font-feature-settings: "ss01", "cv11", "calt"; /* enable nicer alts where the font supports */
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Subtle film grain — gives the dashboard a tactile, "printed" feel without distracting.
+   The SVG noise is encoded as a data URI so no extra asset. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+main {
+  position: relative;
+  z-index: 1;
 }
 
 * {
   border-color: var(--border);
+}
+
+/* ─── Utility classes that match the design system ─────────────────────── */
+
+/* Numerics — apply to any element holding a number, score, salary, count */
+.num,
+.mono {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum", "zero";
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Editorial section label — small caps Fraunces italic */
+.section-label {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: var(--t-sm);
+  color: var(--fg-3);
+  letter-spacing: 0.01em;
+}
+
+/* Page title — Fraunces optical-sized */
+.page-title {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: var(--t-3xl);
+  font-variation-settings: "opsz" 144;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: var(--fg);
+}
+
+.subtitle {
+  color: var(--fg-3);
+  font-size: var(--t-sm);
+  line-height: 1.55;
+  max-width: 60ch;
+}
+
+/* Card — the canonical container */
+.card {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+.card:hover {
+  border-color: var(--border-hi);
+}
+
+/* Subtle stat row */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.kpi-cell {
+  background: var(--bg-elev);
+  padding: var(--sp-4) var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.kpi-cell .label {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--t-xs);
+  color: var(--fg-3);
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+}
+.kpi-cell .value {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum";
+  font-size: var(--t-xl);
+  color: var(--fg);
+  line-height: 1;
+}
+
+/* Sharp chip — used for filters, sources, tags */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 3px 8px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: var(--t-xs);
+  font-family: var(--font-mono);
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+  color: var(--fg-2);
+  transition: all 120ms ease;
+  cursor: pointer;
+}
+.chip:hover {
+  border-color: var(--border-hi);
+  color: var(--fg);
+}
+.chip[data-active="true"],
+.chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r-sm);
+  font-size: var(--t-sm);
+  font-family: var(--font-sans);
+  color: var(--fg);
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.btn:hover {
+  background: var(--bg-elev-2);
+}
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 500;
+}
+.btn-primary:hover {
+  background: #4ad97a;
+}
+.btn-danger {
+  border-color: rgba(255, 107, 74, 0.4);
+  background: rgba(255, 107, 74, 0.08);
+  color: #ff8e6e;
+}
+.btn-danger:hover {
+  background: rgba(255, 107, 74, 0.15);
+}
+
+/* Inputs */
+.input,
+input[type="text"],
+input[type="search"],
+input[type="number"],
+input[type="email"],
+input[type="url"],
+textarea,
+select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 7px 10px;
+  font-size: var(--t-sm);
+  font-family: var(--font-sans);
+  color: var(--fg);
+  transition: border-color 120ms ease;
+  outline: none;
+}
+.input:focus,
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* Score pill — monospace numeric, color-coded */
+.score-pill {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  padding: 4px 6px;
+  border: 1px solid var(--score-none);
+  background: transparent;
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum";
+  color: var(--fg-3);
+}
+.score-pill[data-band="top"] {
+  border-color: var(--score-top);
+  background: rgba(255, 107, 74, 0.06);
+  color: var(--score-top);
+}
+.score-pill[data-band="stretch"] {
+  border-color: var(--score-stretch);
+  background: rgba(240, 192, 80, 0.06);
+  color: var(--score-stretch);
+}
+.score-pill[data-band="pass"] {
+  border-color: var(--score-pass);
+  background: rgba(88, 81, 74, 0.1);
+  color: var(--fg-3);
+}
+.score-pill[data-band="none"] {
+  border-color: var(--score-none);
+  color: var(--fg-4);
+}
+.score-pill .n {
+  font-size: var(--t-base);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.score-pill .b {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+  margin-top: 1px;
+}
+
+/* NEW ribbon */
+.ribbon-new {
+  display: inline-block;
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: 2px;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+/* Status dot */
+.dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fg-4);
+  vertical-align: middle;
+}
+.dot.ok { background: var(--ok); box-shadow: 0 0 6px rgba(92, 240, 140, 0.5); }
+.dot.warn { background: var(--warn); }
+.dot.err { background: var(--err); }
+
+/* Page entrance — a subtle staggered fade */
+@keyframes editorial-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rise {
+  animation: editorial-rise 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.rise[data-delay="1"] { animation-delay: 40ms; }
+.rise[data-delay="2"] { animation-delay: 80ms; }
+.rise[data-delay="3"] { animation-delay: 120ms; }
+.rise[data-delay="4"] { animation-delay: 160ms; }
+
+/* Vertical rule — editorial divider used between sections */
+.vrule {
+  display: inline-block;
+  width: 1px;
+  height: 1em;
+  background: var(--border-hi);
+  vertical-align: middle;
+  margin: 0 var(--sp-3);
+}
+
+/* Hidden until hover — useful for actions on cards */
+.fade-in-hover {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.card:hover .fade-in-hover,
+.row:hover .fade-in-hover {
+  opacity: 1;
+}
+
+/* Selection styling — small editorial touch */
+::selection {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+/* Scrollbar (Firefox + WebKit) */
+* {
+  scrollbar-color: var(--border-hi) transparent;
+  scrollbar-width: thin;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-hi);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--fg-4);
 }

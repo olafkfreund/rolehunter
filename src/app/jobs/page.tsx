@@ -23,60 +23,91 @@ export default async function JobsPage({
   const band = parseBand(sp.band);
   const [jobs, counts] = await Promise.all([listJobs({ band }), countJobsByBand()]);
 
-  const chips: { id: ScoreBand; label: string; emoji: string }[] = [
-    { id: "all", label: "All", emoji: "📋" },
-    { id: "top", label: "Top (≥70)", emoji: "🔥" },
-    { id: "stretch", label: "Stretch (50-69)", emoji: "💪" },
-    { id: "pass", label: "Pass (<50)", emoji: "😴" },
-    { id: "unscored", label: "Unscored", emoji: "❓" },
+  const chips: { id: ScoreBand; label: string }[] = [
+    { id: "all", label: "all" },
+    { id: "top", label: "top ≥70" },
+    { id: "stretch", label: "stretch 50–69" },
+    { id: "pass", label: "pass <50" },
+    { id: "unscored", label: "unscored" },
   ];
+
+  const activeChip = chips.find((c) => c.id === band);
 
   return (
     <div className="space-y-8">
-      <section className="space-y-2">
-        <h1 className="text-2xl font-bold tracking-tight">Jobs</h1>
-        <p className="text-sm text-[var(--muted-foreground)]">
-          Ranked by best CV-match score across all sources. Set up a{" "}
-          <Link href="/search" className="underline underline-offset-2 hover:text-[var(--foreground)]">
-            saved search
-          </Link>{" "}
-          to populate this feed automatically.
+      <section className="rise" data-delay="1">
+        <div className="section-label mb-2">vol. iii · the firehose, ranked</div>
+        <h1 className="page-title">
+          <span>Jobs</span>
+          {band !== "all" && (
+            <>
+              <span className="text-[var(--fg-4)] mx-3 font-normal" style={{ fontFamily: "var(--font-sans)" }}>
+                /
+              </span>
+              <span
+                className="italic font-normal text-[var(--accent)]"
+                style={{ fontFamily: "var(--font-serif)" }}
+              >
+                {activeChip?.label}
+              </span>
+            </>
+          )}
+        </h1>
+        <p className="subtitle mt-2">
+          Ranked by best CV-match score across {counts.all} ingested jobs from{" "}
+          <Link href="/search" className="text-[var(--fg-2)] hover:text-[var(--accent)] underline underline-offset-2 decoration-[var(--border-hi)]">
+            saved searches
+          </Link>
+          . Sourced from 11 adapters; auto-scored against your active CV.
         </p>
       </section>
 
-      <section className="flex flex-wrap items-center gap-2">
-        {chips.map((c) => {
-          const active = band === c.id;
-          const count = counts[c.id] ?? 0;
-          return (
-            <Link
-              key={c.id}
-              href={c.id === "all" ? "/jobs" : `/jobs?band=${c.id}`}
-              className={`rounded-full border px-3 py-1 text-xs transition-colors ${
-                active
-                  ? "border-[var(--foreground)] bg-[var(--foreground)] text-[var(--background)]"
-                  : "border-[var(--border)] bg-[var(--background)] hover:bg-[var(--muted)]"
-              }`}
-            >
-              <span className="mr-1">{c.emoji}</span>
-              {c.label}{" "}
-              <span className="opacity-70">({count})</span>
-            </Link>
-          );
-        })}
+      <section className="kpi-grid rise" data-delay="2">
+        {chips.map((c) => (
+          <Link
+            key={c.id}
+            href={c.id === "all" ? "/jobs" : `/jobs?band=${c.id}`}
+            className="kpi-cell hover:bg-[var(--bg-elev-2)] transition-colors group"
+            style={{
+              outline: band === c.id ? "1px solid var(--accent)" : undefined,
+              outlineOffset: band === c.id ? "-1px" : undefined,
+            }}
+          >
+            <span className="label">{c.label}</span>
+            <span className="value" style={{ color: band === c.id ? "var(--accent)" : undefined }}>
+              {counts[c.id]?.toLocaleString() ?? 0}
+            </span>
+          </Link>
+        ))}
       </section>
 
-      <section className="space-y-4">
-        <JobsSearchForm />
-        <JobPasteForm />
+      <section className="rise" data-delay="3">
+        <details className="card group">
+          <summary className="cursor-pointer flex items-center justify-between px-4 py-3 text-[13px] text-[var(--fg-2)] hover:text-[var(--fg)] transition-colors list-none [&::-webkit-details-marker]:hidden">
+            <span className="flex items-center gap-2">
+              <span
+                className="italic text-[var(--fg-3)]"
+                style={{ fontFamily: "var(--font-serif)" }}
+              >
+                one-shot search
+              </span>
+              <span className="text-[var(--fg-4)]">— manual fetch via JSearch, LinkedIn, or paste</span>
+            </span>
+            <span className="font-mono text-[11px] text-[var(--fg-4)] group-open:rotate-180 transition-transform">▾</span>
+          </summary>
+          <div className="border-t border-[var(--border)] px-4 py-4 space-y-3">
+            <JobsSearchForm />
+            <JobPasteForm />
+          </div>
+        </details>
       </section>
 
-      <section className="space-y-3">
+      <section className="space-y-3 rise" data-delay="4">
         <div className="flex items-baseline justify-between">
-          <h2 className="text-lg font-semibold tracking-tight">
-            {band === "all" ? "Saved jobs" : `${chips.find((c) => c.id === band)?.label}`}
+          <h2 className="section-label">
+            {band === "all" ? "all jobs" : `${activeChip?.label}`}
           </h2>
-          <span className="text-xs text-[var(--muted-foreground)]">
+          <span className="text-[11px] text-[var(--fg-4)] font-mono uppercase tracking-wider">
             showing {jobs.length}
             {jobs.length === 200 ? " (cap)" : ""}
           </span>
