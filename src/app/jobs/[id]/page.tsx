@@ -18,6 +18,7 @@ import { FlashcardsPanel } from "@/components/flashcards-panel";
 import { JobActionBar } from "@/components/job-action-bar";
 import { CompanyPanel } from "@/components/company-panel";
 import { FitDashboard } from "@/components/fit-dashboard";
+import { JobDescription } from "@/components/job-description";
 
 export const dynamic = "force-dynamic";
 
@@ -190,13 +191,14 @@ export default async function JobDetailPage({
         <FlashcardsPanel jobId={job.id} />
       </section>
 
-      <section className="space-y-2 rounded-lg border border-[var(--border)] p-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
-          Description
-        </h2>
-        <div className="whitespace-pre-wrap text-sm leading-relaxed">
-          {job.description || "(no description)"}
+      <section className="space-y-4 rounded-lg border border-[var(--border)] bg-[var(--bg-elev)] p-6 lg:p-8">
+        <div className="flex items-baseline justify-between gap-3 flex-wrap">
+          <h2 className="section-label">Description</h2>
+          <span className="text-[10px] font-mono text-[var(--fg-4)]">
+            {job.description ? `${job.description.length.toLocaleString()} chars` : ""}
+          </span>
         </div>
+        <JobDescription description={job.description} />
       </section>
     </div>
   );
