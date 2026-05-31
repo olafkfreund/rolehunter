@@ -20,6 +20,7 @@ import type { Company } from "@/lib/db/schema";
 import { CompanyCompareDrawer } from "@/components/company-compare-drawer";
 import { CompanySiblingPanels } from "@/components/company-sibling-panels";
 import { CompanyCompareApplications } from "@/components/company-compare-applications";
+import { CompanyLogo } from "@/components/company-logo";
 import { listApplicationCompanies } from "@/lib/companies/compare";
 
 export const dynamic = "force-dynamic";
@@ -108,18 +109,11 @@ export default async function CompanyDetailPage({
       <header className="space-y-3 rise" data-delay="1">
         <div className="section-label">company profile</div>
         <div className="flex items-start gap-4">
-          {company.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={company.logoUrl}
-              alt={`${company.name} logo`}
-              className="w-16 h-16 rounded-md border border-[var(--border)] bg-[var(--bg-elev)] object-contain p-2 shrink-0"
-            />
-          ) : (
-            <div className="w-16 h-16 rounded-md border border-[var(--border)] bg-[var(--bg-elev)] flex items-center justify-center font-mono text-3xl text-[var(--fg-3)] shrink-0">
-              {company.name.slice(0, 1).toUpperCase()}
-            </div>
-          )}
+          <CompanyLogo
+            src={company.logoUrl}
+            name={company.name}
+            className="w-16 h-16 rounded-md border border-[var(--border)] bg-[var(--bg-elev)] object-contain p-2 shrink-0"
+          />
           <div className="min-w-0 flex-1">
             <h1 className="page-title">{company.name}</h1>
             <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-[var(--fg-3)]">
