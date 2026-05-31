@@ -148,6 +148,11 @@ export const jobListings = pgTable(
     // /jobs list can show it without recomputing per row.
     fitOverallScore: smallint("fit_overall_score"),
     fitScoredAt: timestamp("fit_scored_at"),
+    // v3.2 — cached straight-line distance (km) from home to the resolved
+    // work location. Profile-dependent; stale on home-address change. Next
+    // /jobs/[id] view overwrites.
+    distanceKm: smallint("distance_km"),
+    distanceScoredAt: timestamp("distance_scored_at"),
   },
   (t) => ({
     externalIdx: uniqueIndex("job_listings_external_idx").on(t.source, t.externalId),

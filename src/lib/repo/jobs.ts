@@ -6,7 +6,7 @@ import type { JSearchJob } from "@/lib/jsearch/client";
 import type { LinkedInJob } from "@/lib/linkedin/client";
 
 export type ScoreBand = "top" | "stretch" | "pass" | "unscored" | "all";
-export type SortMode = "date" | "score" | "fit";
+export type SortMode = "date" | "score" | "fit" | "distance";
 
 export async function listJobs(
   opts: {
@@ -29,6 +29,13 @@ export async function listJobs(
     // bottom (they need a /jobs/[id] view to populate the cache).
     query = query.orderBy(
       sql`${schema.jobListings.fitOverallScore} DESC NULLS LAST`,
+      desc(schema.jobListings.fetchedAt),
+    );
+  } else if (sort === "distance") {
+    // Closest first, NULLS LAST. Jobs that haven't been opened recently
+    // (no cached distance) sink to the bottom.
+    query = query.orderBy(
+      sql`${schema.jobListings.distanceKm} ASC NULLS LAST`,
       desc(schema.jobListings.fetchedAt),
     );
   } else if (sort === "date") {
@@ -384,6 +391,31 @@ export async function cacheJobFitScore(
     .set({
       fitOverallScore: score,
       fitScoredAt: score !== null ? new Date() : null,
+    })
+    .where(eq(schema.jobListings.id, jobId))
+    .returning({ id: schema.jobListings.id });
+  return result.length > 0;
+}
+
+/**
+ * Cache the resolved distance (km) from the user's home to the company's
+ * work location on this job. Clamps to smallint range (max ~32k km — the
+ * antipode is ~20,015 km, so this is safe). Returns true when a write
+ * happened. NULL means "not yet scored" — sinks to the bottom when sorting
+ * by distance.
+ */
+export async function cacheJobDistance(
+  jobId: number,
+  km: number | null,
+): Promise<boolean> {
+  if (km !== null && (!Number.isFinite(km) || km < 0)) return false;
+  const clamped = km !== null ? Math.min(Math.round(km), 32_000) : null;
+  const db = getDb();
+  const result = await db
+    .update(schema.jobListings)
+    .set({
+      distanceKm: clamped,
+      distanceScoredAt: clamped !== null ? new Date() : null,
     })
     .where(eq(schema.jobListings.id, jobId))
     .returning({ id: schema.jobListings.id });

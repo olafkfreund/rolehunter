@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { cacheJobFitScore, getJob, updateJobDescription } from "@/lib/repo/jobs";
+import {
+  cacheJobDistance,
+  cacheJobFitScore,
+  getJob,
+  updateJobDescription,
+} from "@/lib/repo/jobs";
 import { getJobDetail } from "@/lib/linkedin/client";
 import { listApplicationsWithJob } from "@/lib/repo/applications";
 import { getCompanyForJob } from "@/lib/repo/companies";
@@ -82,6 +87,11 @@ export default async function JobDetailPage({
     : null;
   const initialDistanceKm = resolvedDistance?.km ?? null;
   const workLocation = company ? await resolveWorkLocation(company, profileForGeo) : null;
+  // Cache the distance on the job row so /jobs can show a chip per row
+  // without recomputing. Only writes when changed.
+  if (initialDistanceKm !== job.distanceKm) {
+    await cacheJobDistance(job.id, initialDistanceKm).catch(() => {});
+  }
 
   return (
     <div className="space-y-6">
