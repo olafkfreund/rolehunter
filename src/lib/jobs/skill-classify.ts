@@ -10,11 +10,16 @@
 import { extractTechTokens } from "@/lib/tech-tokens";
 
 export type SkillClass = "matched" | "partial" | "missing";
+export type SkillEvidence = "cv" | "portfolio";
 
 export interface ClassifiedSkill {
   token: string; // the JD-side label
   class: SkillClass;
-  cvMatch: string | null; // what CV term we matched against, if any
+  cvMatch: string | null; // what CV/portfolio term we matched against, if any
+  /** Where the proof came from — CV vs portfolio repo/project. */
+  evidence?: SkillEvidence;
+  /** When evidence is "portfolio", the project title that surfaced the token. */
+  portfolioProject?: string;
 }
 
 // Token families: a hit on any sibling counts as a "partial" match for the
@@ -75,47 +80,113 @@ export interface ClassifyResult {
   coveragePct: number; // 0-100, matched + 0.5 * partial / total
 }
 
+export interface PortfolioSkillContext {
+  /** Token from a portfolio repo's tech list or extracted from README/desc. */
+  token: string;
+  /** Project title that surfaced this token — used for evidence display. */
+  project: string;
+}
+
 export function classifyJobSkills(
   jobDescription: string,
   cvSkills: string[] | undefined,
   jobTitle = "",
+  portfolio: PortfolioSkillContext[] = [],
 ): ClassifyResult {
   // Title carries decisive signal ("Senior Kubernetes engineer") that the
   // description often re-iterates — scan both.
   const jobTokens = extractTechTokens(`${jobTitle}\n${jobDescription}`);
   const cvLower = new Set((cvSkills ?? []).map(normalizeCvSkill));
 
-  // Build a flat union of CV skills' family memberships so partial matches
-  // can fire when JD says "React" and CV says "Vue", for instance.
+  // Portfolio tokens → project. Lowercase key for matching; keep the
+  // project title so evidence can render "matched via <project>".
+  const portfolioMap = new Map<string, string>();
+  for (const p of portfolio) {
+    const k = normalizeCvSkill(p.token);
+    if (k && !portfolioMap.has(k)) portfolioMap.set(k, p.project);
+  }
+
+  // Build a flat union of CV + portfolio skills' family memberships so
+  // partial matches can fire across both sources.
   const cvFamilies: Set<Set<string>> = new Set();
   for (const s of cvLower) {
     const fam = familyOf(s);
     if (fam) cvFamilies.add(fam);
   }
+  const portfolioFamilies: Map<Set<string>, string> = new Map();
+  for (const [k, project] of portfolioMap) {
+    const fam = familyOf(k);
+    if (fam && !portfolioFamilies.has(fam)) portfolioFamilies.set(fam, project);
+  }
 
   const classified: ClassifiedSkill[] = jobTokens.map((token) => {
     const lower = token.toLowerCase();
-    // Exact match — try lower form and also try "next.js"/"nextjs" variants
+
+    // CV exact match
     if (cvLower.has(lower)) {
-      return { token, class: "matched", cvMatch: lower };
+      return { token, class: "matched", cvMatch: lower, evidence: "cv" };
     }
-    // Allow common spelling variants from the user's CV — collapse '.', '-'
+    // CV normalized-spelling match (next.js / nextjs)
     const collapsed = lower.replace(/[.\-\s]/g, "");
     for (const s of cvLower) {
       if (s.replace(/[.\-\s]/g, "") === collapsed) {
-        return { token, class: "matched", cvMatch: s };
+        return { token, class: "matched", cvMatch: s, evidence: "cv" };
       }
     }
-    // Partial: in same family as something the CV has
+    // Portfolio exact match
+    if (portfolioMap.has(lower)) {
+      return {
+        token,
+        class: "matched",
+        cvMatch: lower,
+        evidence: "portfolio",
+        portfolioProject: portfolioMap.get(lower)!,
+      };
+    }
+    // Portfolio normalized-spelling match
+    for (const [pk, project] of portfolioMap) {
+      if (pk.replace(/[.\-\s]/g, "") === collapsed) {
+        return {
+          token,
+          class: "matched",
+          cvMatch: pk,
+          evidence: "portfolio",
+          portfolioProject: project,
+        };
+      }
+    }
+    // Partial: CV family hit
     const fam = familyOf(token);
     if (fam) {
       for (const cvFam of cvFamilies) {
         if (cvFam === fam) {
-          // Find a CV term that's in this family for display
           for (const s of cvLower) {
-            if (fam.has(s)) return { token, class: "partial", cvMatch: s };
+            if (fam.has(s)) return { token, class: "partial", cvMatch: s, evidence: "cv" };
           }
-          return { token, class: "partial", cvMatch: null };
+          return { token, class: "partial", cvMatch: null, evidence: "cv" };
+        }
+      }
+      // Partial: portfolio family hit
+      for (const [pFam, project] of portfolioFamilies) {
+        if (pFam === fam) {
+          for (const [pk] of portfolioMap) {
+            if (fam.has(pk)) {
+              return {
+                token,
+                class: "partial",
+                cvMatch: pk,
+                evidence: "portfolio",
+                portfolioProject: project,
+              };
+            }
+          }
+          return {
+            token,
+            class: "partial",
+            cvMatch: null,
+            evidence: "portfolio",
+            portfolioProject: project,
+          };
         }
       }
     }
