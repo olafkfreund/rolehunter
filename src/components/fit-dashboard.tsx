@@ -152,12 +152,17 @@ export function FitDashboard({ report }: Props) {
           <div className="flex flex-wrap gap-1.5">
             {report.skills.classified.map((s, i) => {
               const k = skillClassColor(s.class);
+              const isPortfolio = s.evidence === "portfolio";
               const title =
                 s.class === "matched"
-                  ? `Matched — CV: "${s.cvMatch ?? ""}"`
+                  ? isPortfolio
+                    ? `Matched via portfolio project "${s.portfolioProject ?? "unknown"}" — CV doesn't mention it but you have a repo`
+                    : `Matched — CV: "${s.cvMatch ?? ""}"`
                   : s.class === "partial"
-                    ? `Partial — CV has related: "${s.cvMatch ?? "related family"}"`
-                    : "Missing from your CV";
+                    ? isPortfolio
+                      ? `Partial — portfolio project "${s.portfolioProject ?? "unknown"}" has a related family member`
+                      : `Partial — CV has related: "${s.cvMatch ?? "related family"}"`
+                    : "Missing from your CV and your portfolio";
               return (
                 <span
                   key={`${s.token}-${i}`}
@@ -170,10 +175,25 @@ export function FitDashboard({ report }: Props) {
                     style={{ background: k.fg }}
                   />
                   {s.token}
+                  {isPortfolio && (
+                    <span
+                      className="text-[9px] uppercase tracking-wider opacity-70"
+                      style={{ color: k.fg }}
+                      aria-label="from portfolio"
+                    >
+                      ↗
+                    </span>
+                  )}
                 </span>
               );
             })}
           </div>
+          <p className="text-[10px] text-[var(--fg-4)] mt-2">
+            Sources: your active CV's <code className="font-mono">skills</code> array
+            + every visible portfolio repo/project (GitHub topics, GitLab tags,
+            and TECH_TOKENS scanned from README content). Chips marked with{" "}
+            <span className="font-mono">↗</span> matched via a portfolio project.
+          </p>
         </div>
       )}
     </section>

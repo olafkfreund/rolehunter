@@ -8,6 +8,7 @@
 import type { Company, JobListing, Profile } from "@/lib/db/schema";
 import type { CvJson } from "@/lib/llm";
 import { classifyJobSkills, type ClassifyResult } from "./skill-classify";
+import { loadPortfolioSkillContext } from "./portfolio-skills";
 import { convertCurrency, SUPPORTED_BASES } from "@/lib/fx";
 import { resolveWorkLocation } from "@/lib/companies/work-location";
 import type { OfficePickResult } from "@/lib/companies/pick-office";
@@ -521,7 +522,20 @@ export async function computeFitReport(
   company: Company | null,
   profile: Profile | null,
 ): Promise<FitReport> {
-  const skills = classifyJobSkills(job.description, cv?.skills, job.title);
+  // Pull portfolio-derived skill evidence so JD tokens you don't have in
+  // your CV's skills array but DO have a repo for still count as matched.
+  let portfolioContext: Awaited<ReturnType<typeof loadPortfolioSkillContext>>;
+  try {
+    portfolioContext = await loadPortfolioSkillContext();
+  } catch {
+    portfolioContext = { contexts: [], projectCount: 0 };
+  }
+  const skills = classifyJobSkills(
+    job.description,
+    cv?.skills,
+    job.title,
+    portfolioContext.contexts,
+  );
   const dimensions: FitDimension[] = [
     scoreSkills(skills),
     scoreExperience(job, cv),
