@@ -10,11 +10,18 @@ import {
   rowsToConnections,
 } from "@/lib/companies/sources/linkedin-company";
 import {
+  listBenefits,
+  listLayoffs,
   upsertBenefit,
   upsertConnection,
   upsertLayoff,
   upsertNewsItem,
 } from "./company-siblings";
+import {
+  computeCompanyFitScore,
+  upsertCompanyFitScore,
+} from "@/lib/companies/fit-score";
+import { getProfile } from "./profile";
 
 const FRESH_MS = 7 * 24 * 60 * 60 * 1000; // a company snapshot is "fresh" for 7 days
 
@@ -185,6 +192,25 @@ export async function enrichAndPersist(
       for (const c of rowsToConnections(rows)) await upsertConnection(updated.id, c);
     }
   } catch { /* linkedin-company is bonus */ }
+
+  // Recompute the cached fit score with whatever signals we now have.
+  try {
+    const [latestCompany, profile, layoffs, benefits] = await Promise.all([
+      getCompanyById(updated.id),
+      getProfile(),
+      listLayoffs(updated.id),
+      listBenefits(updated.id),
+    ]);
+    if (latestCompany) {
+      const breakdown = computeCompanyFitScore({
+        company: latestCompany,
+        profile,
+        layoffs,
+        benefits,
+      });
+      await upsertCompanyFitScore(updated.id, breakdown);
+    }
+  } catch { /* fit-score caching is bonus */ }
 
   return updated;
 }
