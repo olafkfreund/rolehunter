@@ -283,6 +283,7 @@ export default async function CompanyDetailPage({
       )}
 
       <CompanySiblingPanels
+        companyId={company.id}
         news={news}
         layoffs={layoffs}
         benefits={benefits}

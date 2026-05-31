@@ -194,6 +194,16 @@ export async function enrichAndPersist(
     }
   } catch { /* linkedin-company is bonus */ }
 
+  // Extract office locations from this company's job listings — gives the
+  // city-matched-office picker (PR #83) actual data to work with. Free,
+  // uses the existing Nominatim helper. Best-effort.
+  try {
+    const { extractOfficesFromJobs } = await import(
+      "@/lib/companies/extract-offices"
+    );
+    await extractOfficesFromJobs(updated.id, { maxCities: 8 });
+  } catch { /* offices is bonus */ }
+
   // Recompute the cached fit score with whatever signals we now have.
   try {
     const [latestCompany, profile, layoffs, benefits, offices] = await Promise.all([

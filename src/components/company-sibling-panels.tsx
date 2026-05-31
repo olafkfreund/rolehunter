@@ -6,6 +6,7 @@ import type {
   CompanyNewsItem,
   CompanyOffice,
 } from "@/lib/db/schema";
+import { OfficeAddForm } from "./office-add-form";
 
 interface Breakdown {
   factors: Array<{
@@ -20,6 +21,7 @@ interface Breakdown {
 }
 
 interface Props {
+  companyId: number;
   news: CompanyNewsItem[];
   layoffs: CompanyLayoff[];
   benefits: CompanyBenefit[];
@@ -59,6 +61,7 @@ function newsKindColor(kind: string): string {
 }
 
 export function CompanySiblingPanels({
+  companyId,
   news,
   layoffs,
   benefits,
@@ -67,7 +70,10 @@ export function CompanySiblingPanels({
   fitScore,
 }: Props) {
   const breakdown = fitScore?.breakdownJson as unknown as Breakdown | null;
-  const empty =
+  // Offices section always renders (so the "Add office" affordance is always
+  // reachable). Only suppress everything when every dataset is empty AND we
+  // have no fit-score yet — but offices stays visible regardless.
+  const fullyEmpty =
     news.length === 0 &&
     layoffs.length === 0 &&
     benefits.length === 0 &&
@@ -75,7 +81,25 @@ export function CompanySiblingPanels({
     offices.length === 0 &&
     !fitScore;
 
-  if (empty) return null;
+  if (fullyEmpty) {
+    // Still render an offices stub so the user can add one manually.
+    return (
+      <section className="rise" data-delay="7">
+        <div className="flex items-baseline justify-between mb-2">
+          <h2 className="text-[15px] font-semibold tracking-tight">
+            <span className="section-label">offices</span>{" "}
+            <span className="text-[var(--fg-4)] mono ml-2">0</span>
+          </h2>
+          <OfficeAddForm companyId={companyId} />
+        </div>
+        <div className="text-[12px] text-[var(--fg-3)]">
+          No offices on record yet. Click Enrich on the company panel to
+          auto-extract them from the job listings you've ingested for this
+          company, or add manually above.
+        </div>
+      </section>
+    );
+  }
 
   // Group benefits by category for cleaner rendering
   const benefitsByCategory = new Map<string, CompanyBenefit[]>();
@@ -299,33 +323,43 @@ export function CompanySiblingPanels({
         </section>
       )}
 
-      {offices.length > 0 && (
-        <section className="rise" data-delay="7">
-          <div className="flex items-baseline justify-between mb-2">
-            <h2 className="text-[15px] font-semibold tracking-tight">
-              <span className="section-label">offices</span>{" "}
-              <span className="text-[var(--fg-4)] mono ml-2">{offices.length}</span>
-            </h2>
+      <section className="rise" data-delay="7">
+        <div className="flex items-baseline justify-between mb-2">
+          <h2 className="text-[15px] font-semibold tracking-tight">
+            <span className="section-label">offices</span>{" "}
+            <span className="text-[var(--fg-4)] mono ml-2">{offices.length}</span>
+          </h2>
+          <OfficeAddForm companyId={companyId} />
+        </div>
+        {offices.length === 0 && (
+          <div className="text-[12px] text-[var(--fg-3)] mb-2">
+            No offices on record yet. Auto-extracted from job listings on next
+            enrich; add manually if you want a specific location matched for
+            the commute calculation.
           </div>
-          <ul className="grid sm:grid-cols-2 gap-3">
-            {offices.map((o) => (
-              <li key={o.id} className="card p-3">
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="font-medium text-[13px]">{o.label || "Office"}</span>
-                  {o.lat != null && o.lng != null && (
-                    <span className="text-[10px] font-mono text-[var(--fg-4)]">
-                      {o.lat.toFixed(3)}, {o.lng.toFixed(3)}
-                    </span>
+        )}
+        {offices.length > 0 && (
+          <div>
+            <ul className="grid sm:grid-cols-2 gap-3">
+              {offices.map((o) => (
+                <li key={o.id} className="card p-3">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="font-medium text-[13px]">{o.label || "Office"}</span>
+                    {o.lat != null && o.lng != null && (
+                      <span className="text-[10px] font-mono text-[var(--fg-4)]">
+                        {o.lat.toFixed(3)}, {o.lng.toFixed(3)}
+                      </span>
+                    )}
+                  </div>
+                  {o.address && (
+                    <div className="mt-0.5 text-[12px] text-[var(--fg-3)]">{o.address}</div>
                   )}
-                </div>
-                {o.address && (
-                  <div className="mt-0.5 text-[12px] text-[var(--fg-3)]">{o.address}</div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
