@@ -19,6 +19,8 @@ import { haversineKm } from "@/lib/companies/geo";
 import type { Company } from "@/lib/db/schema";
 import { CompanyCompareDrawer } from "@/components/company-compare-drawer";
 import { CompanySiblingPanels } from "@/components/company-sibling-panels";
+import { CompanyCompareApplications } from "@/components/company-compare-applications";
+import { listApplicationCompanies } from "@/lib/companies/compare";
 
 export const dynamic = "force-dynamic";
 
@@ -49,18 +51,32 @@ export default async function CompanyDetailPage({
   const [company, profile] = await Promise.all([getCompanyById(numericId), getProfile()]);
   if (!company) notFound();
 
-  const [jobs, apps, otherCompanies, news, layoffs, benefits, connections, offices, fit] =
-    await Promise.all([
-      getJobsForCompany(company.id),
-      getApplicationsForCompany(company.id),
-      listCompanies(),
-      listNews(company.id, { limit: 15 }),
-      listLayoffs(company.id),
-      listBenefits(company.id),
-      listConnections(company.id),
-      listOffices(company.id),
-      getCompanyFitScore(company.id),
-    ]);
+  const [
+    jobs,
+    apps,
+    otherCompanies,
+    news,
+    layoffs,
+    benefits,
+    connections,
+    offices,
+    fit,
+    applicationCompanies,
+  ] = await Promise.all([
+    getJobsForCompany(company.id),
+    getApplicationsForCompany(company.id),
+    listCompanies(),
+    listNews(company.id, { limit: 15 }),
+    listLayoffs(company.id),
+    listBenefits(company.id),
+    listConnections(company.id),
+    listOffices(company.id),
+    getCompanyFitScore(company.id),
+    listApplicationCompanies(),
+  ]);
+  const otherApplicationCompanies = applicationCompanies.filter(
+    (r) => r.company.id !== company.id,
+  );
 
   // Distance from home if both points known
   let distanceKm: number | null = null;
@@ -259,6 +275,13 @@ export default async function CompanyDetailPage({
         connections={connections}
         offices={offices}
         fitScore={fit}
+      />
+
+      <CompanyCompareApplications
+        current={company}
+        currentFitScore={fit?.score ?? null}
+        currentDistanceKm={distanceKm}
+        comparisons={otherApplicationCompanies}
       />
 
       <section className="rise" data-delay="6">
