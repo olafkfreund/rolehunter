@@ -7,6 +7,7 @@
 // remain factory-lazy via registry.register() so an unavailable adapter
 // doesn't crash the module load.
 
+import { createAdzunaAdapter } from "./adzuna";
 import { createJobSpyAdapter } from "./jobspy";
 import { createJSearchAdapter } from "./jsearch";
 import { createLinkedInAdapter } from "./linkedin";
@@ -22,8 +23,8 @@ export function ensureAdaptersRegistered(): void {
   register("linkedin", createLinkedInAdapter);
   register("paste", createPasteAdapter);
   register("jobspy", createJobSpyAdapter);
+  register("adzuna", createAdzunaAdapter);
   // v3.0 follow-up branches add:
-  //   register("adzuna", createAdzunaAdapter);  // PR #50 OPEN
   //   register("indeed", createIndeedAdapter);
   //   register("dice", createDiceAdapter);
   //   register("apify", createApifyAdapter);
