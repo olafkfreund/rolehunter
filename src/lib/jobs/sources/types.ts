@@ -9,7 +9,10 @@ export type JobSourceId =
   | "indeed"
   | "dice"
   | "jobspy"
-  | "apify";
+  | "apify"
+  | "greenhouse"
+  | "lever"
+  | "workday";
 
 export type RemoteMode = "remote" | "hybrid" | "onsite";
 export type SalaryPeriod = "year" | "month" | "hour";
@@ -25,6 +28,13 @@ export interface SearchParams {
   jobTypes?: string[];
   maxResults: number;
   countryHint?: string;
+  /**
+   * ATS-source specific: which company boards to fetch.
+   * - Greenhouse / Lever: company slug (`"stripe"`)
+   * - Workday: `"tenant/site"` (e.g. `"stripe/External"`)
+   * Ignored by query-based adapters (jsearch, linkedin, adzuna, etc).
+   */
+  targetCompanies?: string[];
 }
 
 export interface RawSalary {
