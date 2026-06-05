@@ -1,11 +1,29 @@
 # MkDocs config for Backstage TechDocs.
 # Edit at will — Backstage rebuilds on next view.
 # https://backstage.io/docs/features/techdocs/getting-started
+#
+# Single-source: TechDocs reads the existing GitHub docs in ./doc directly,
+# so what renders in Backstage is exactly what lives in the repo.
+site_name: RoleHunter
+site_description: >-
+  Self-hosted, single-user AI job-hunt workspace — LLM job matching, per-role CV
+  tailoring, cover letters, application tracking, interview prep, and cross-role
+  skill-gap analysis.
 
-site_name: rolehunter
-site_description: Self-hosted, single-user AI job-hunt copilot: LLM job matching, per-role CV tailoring, cover letters, application tracking, gap analysis. Next.js + Postgres + Docker.
+# The repo keeps its docs in doc/ (not docs/); point TechDocs at it.
+docs_dir: doc
 
-docs_dir: docs
+# Keep helper scripts out of the rendered site.
+exclude_docs: |
+  scripts/
+
+nav:
+  - Home: index.md
+  - Onboarding: onboarding.md
+  - Starting guide: starting.md
+  - Development: development.md
+  - Design:
+      - RoleHunter v3 design: plans/2026-05-31-rolehunter-v3-design.md
 
 plugins:
   - techdocs-core

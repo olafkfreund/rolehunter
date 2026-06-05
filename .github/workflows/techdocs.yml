@@ -1,0 +1,61 @@
+# Keeps the GitHub docs and the Backstage catalog/TechDocs in sync.
+#
+# The freundcloud Backstage instance auto-discovers this repo via its GitHub
+# org provider and rebuilds TechDocs on-demand from the repo, so there is no
+# push step here. This workflow's job is to guarantee that whatever lands on
+# main is always valid Backstage format:
+#   1. catalog-info.yaml validates against the Backstage entity schema.
+#   2. The TechDocs site builds cleanly (--strict) with the real techdocs-core
+#      plugin, exactly as Backstage builds it.
+# A PR cannot merge unless both hold, so the catalog never drifts from the docs.
+name: TechDocs & Catalog
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - doc/**
+      - mkdocs.yml
+      - catalog-info.yaml
+      - .github/workflows/techdocs.yml
+  pull_request:
+    paths:
+      - doc/**
+      - mkdocs.yml
+      - catalog-info.yaml
+      - .github/workflows/techdocs.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate catalog + build TechDocs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate catalog-info.yaml (Backstage entity schema)
+        uses: RoadieHQ/backstage-entity-validator@v0.5.0
+        with:
+          path: catalog-info.yaml
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install TechDocs toolchain
+        run: pip install mkdocs-techdocs-core
+
+      - name: Build TechDocs (strict)
+        run: mkdocs build --strict --site-dir _techdocs-site
+
+      - name: Upload TechDocs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: techdocs-site
+          path: _techdocs-site
+          retention-days: 14
