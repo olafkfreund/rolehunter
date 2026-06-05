@@ -54,6 +54,8 @@ To access from another machine, use an SSH tunnel — the app is intentionally b
 - [`doc/starting.md`](doc/starting.md) — one section per page with every control explained, all 11 screenshots inline.
 - [`doc/development.md`](doc/development.md) — stack, directory layout, how to add columns / LLM methods / API routes / pages; coding conventions; screenshot regeneration.
 
+These same docs are published as [Backstage TechDocs](https://backstage.io/docs/features/techdocs/) — the repo is catalogued via [`catalog-info.yaml`](catalog-info.yaml) and TechDocs renders the `doc/` tree directly through [`mkdocs.yml`](mkdocs.yml), so the GitHub docs and the Backstage portal never drift. The [`TechDocs & Catalog`](.github/workflows/techdocs.yml) workflow validates the catalog entity and strict-builds the docs on every change.
+
 ## Stack
 
 Next.js 15 · React 19 · TypeScript · Tailwind v4 · Drizzle ORM · PostgreSQL 16 (pgvector) · Playwright (PDF) · Anthropic and Google Gen AI SDKs · TanStack Table · dnd-kit · sonner.
