@@ -82,7 +82,9 @@ spec:
               memory: 2Gi
         # ── Tailscale sidecar (factory-gitops docs/sidecar-pattern.md) ─────
         - name: tailscale
-          image: ghcr.io/tailscale/tailscale:v1.74.0
+          # Docker Hub is Tailscale's canonical registry; the ghcr mirror does
+          # not publish this tag (ghcr.io/tailscale/tailscale:v1.74.0 → 404).
+          image: tailscale/tailscale:v1.78.1
           imagePullPolicy: IfNotPresent
           env:
             - name: TS_AUTHKEY
