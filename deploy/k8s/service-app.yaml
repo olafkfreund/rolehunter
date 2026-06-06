@@ -1,0 +1,18 @@
+# In-cluster service for the app (used for ArgoCD health + any internal callers).
+# External/tailnet access is via the Tailscale sidecar (serve :443 -> :3000),
+# not this Service.
+apiVersion: v1
+kind: Service
+metadata:
+  name: rolehunter-app
+  labels:
+    app.kubernetes.io/name: rolehunter-app
+    app.kubernetes.io/part-of: rolehunter
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: rolehunter-app
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000

@@ -1,0 +1,17 @@
+# Persistent storage for uploaded CVs/LinkedIn PDFs and generated CV/cover-letter
+# PDFs (compose: the `uploads` Docker volume, mounted at /app/uploads).
+# local-path is node-bound RWO, so the app runs single-replica with a Recreate
+# strategy (an RWO PVC can't be attached to old+new pods during a rolling update).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rolehunter-uploads
+  labels:
+    app.kubernetes.io/name: rolehunter-app
+    app.kubernetes.io/part-of: rolehunter
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi

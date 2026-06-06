@@ -1,0 +1,125 @@
+# RoleHunter Next.js app (standalone) + Tailscale sidecar.
+# Sync-wave 2: rolls out after DB (0) and migrations (1).
+# Recreate strategy because the uploads PVC is RWO (single-node bound).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rolehunter-app
+  labels:
+    app.kubernetes.io/name: rolehunter-app
+    app.kubernetes.io/part-of: rolehunter
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rolehunter-app
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rolehunter-app
+        app.kubernetes.io/part-of: rolehunter
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull
+      containers:
+        # ── App ───────────────────────────────────────────────────────────
+        - name: app
+          image: ghcr.io/olafkfreund/rolehunter:main
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "3000"
+            - name: HOSTNAME
+              value: 0.0.0.0
+            - name: UPLOAD_DIR
+              value: /app/uploads
+            # The in-process scheduler (node-cron) auto-enables in production;
+            # set explicitly so it's obvious this pod runs background jobs.
+            - name: ENABLE_SCHEDULER
+              value: "1"
+          envFrom:
+            # DATABASE_URL (required) + all optional provider keys
+            # (ANTHROPIC_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY,
+            # JSEARCH_RAPIDAPI_KEY, ADZUNA_*, APIFY_*, GOOGLE_MAPS_API_KEY, …).
+            # Seeded out-of-band — see deploy/k8s/README.md.
+            - secretRef:
+                name: rolehunter-app
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/uploads
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 4
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 45
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 4
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              # Headroom for Playwright/Chromium PDF rendering.
+              cpu: "2"
+              memory: 2Gi
+        # ── Tailscale sidecar (factory-gitops docs/sidecar-pattern.md) ─────
+        - name: tailscale
+          image: ghcr.io/tailscale/tailscale:v1.74.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: TS_AUTHKEY
+              valueFrom:
+                secretKeyRef:
+                  name: tailscale-auth-key
+                  key: TS_AUTHKEY
+            - name: TS_HOSTNAME
+              value: "rolehunter"
+            - name: TS_USERSPACE
+              value: "true"
+            - name: TS_STATE_DIR
+              value: "/tmp/tsstate"
+            - name: TS_EXTRA_ARGS
+              value: "--accept-dns=false"
+            - name: TS_SERVE_CONFIG
+              value: "/etc/tsconfig/serve.json"
+          volumeMounts:
+            - name: ts-serve-config
+              mountPath: /etc/tsconfig
+              readOnly: true
+          securityContext:
+            runAsUser: 1000
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: rolehunter-uploads
+        - name: ts-serve-config
+          configMap:
+            name: rolehunter-tailscale-serve-config

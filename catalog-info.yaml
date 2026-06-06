@@ -17,17 +17,34 @@ metadata:
   annotations:
     backstage.io/techdocs-ref: dir:.
     github.com/project-slug: olafkfreund/rolehunter
+    # Deployed to the k3d cluster on p510 by ArgoCD (factory-gitops
+    # apps/rolehunter). These annotations light up the ArgoCD + Kubernetes
+    # tabs in Backstage.
+    argocd/app-name: rolehunter
+    backstage.io/kubernetes-id: rolehunter
+    backstage.io/kubernetes-label-selector: app.kubernetes.io/part-of=rolehunter
   tags:
     - nextjs
     - typescript
     - postgres
     - docker
+    - kubernetes
+    - argocd
     - ai
     - llm
     - job-search
   links:
+    - url: https://rolehunter.tail833f7.ts.net
+      title: Live app (tailnet)
+      icon: dashboard
     - url: https://github.com/olafkfreund/rolehunter
       title: GitHub repository
+      icon: github
+    - url: https://github.com/olafkfreund/factory-gitops/blob/main/apps/rolehunter/application.yaml
+      title: ArgoCD Application (factory-gitops)
+      icon: github
+    - url: https://github.com/olafkfreund/rolehunter/tree/main/deploy/k8s
+      title: Kubernetes manifests
       icon: github
 spec:
   type: service
@@ -369,11 +386,15 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: rolehunter-db
-  description: "PostgreSQL 16 with pgvector — primary datastore for jobs, applications, CVs, matches, gaps, interviews, and embeddings. Runs as the compose 'db' service."
+  description: "PostgreSQL 16 with pgvector — primary datastore for jobs, applications, CVs, matches, gaps, interviews, and embeddings. Runs as the 'rolehunter-db' StatefulSet (local-path PVC) on the p510 k3d cluster; locally as the compose 'db' service."
+  annotations:
+    backstage.io/kubernetes-id: rolehunter
+    backstage.io/kubernetes-label-selector: app.kubernetes.io/name=rolehunter-db
   tags:
     - postgresql
     - pgvector
     - database
+    - kubernetes
 spec:
   type: database
   lifecycle: production
@@ -385,10 +406,11 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: rolehunter-uploads
-  description: "Uploads volume — stores uploaded CVs/LinkedIn PDFs and generated CV/cover-letter PDFs. Backed by the compose 'uploads' Docker volume."
+  description: "Uploads volume — stores uploaded CVs/LinkedIn PDFs and generated CV/cover-letter PDFs. Backed by the 'rolehunter-uploads' local-path PVC on the p510 k3d cluster; locally by the compose 'uploads' Docker volume."
   tags:
     - storage
     - volume
+    - kubernetes
 spec:
   type: storage
   lifecycle: production

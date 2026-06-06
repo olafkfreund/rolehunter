@@ -10,6 +10,21 @@ COPY package.json package-lock.json* ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --include=dev --force
 
+# --- migrator layer ---
+# Lean image used by the Kubernetes migrate Job (deploy/k8s/job-migrate.yaml)
+# to apply Drizzle migrations against the in-cluster Postgres before the app
+# rolls out. Reuses the full node_modules from `deps` (drizzle-orm + pg are
+# both there) and ships only the migration runner + SQL — no Next.js build,
+# no Playwright/Chromium. Published as ghcr.io/olafkfreund/rolehunter-migrator.
+FROM node:${NODE_VERSION} AS migrator
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json ./
+COPY scripts/migrate.mjs ./scripts/migrate.mjs
+COPY src/lib/db/migrations ./src/lib/db/migrations
+CMD ["node", "scripts/migrate.mjs"]
+
 # --- build layer ---
 FROM node:${NODE_VERSION} AS builder
 WORKDIR /app
