@@ -78,6 +78,97 @@
       "when": 1780239956516,
       "tag": "0010_v3_portfolio",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1780240016516,
+      "tag": "0011_v3_2_companies",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1780240076516,
+      "tag": "0012_v3_2_profile_address",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1780240136516,
+      "tag": "0013_v3_2_company_hq_geo",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1780240196516,
+      "tag": "0014_v3_2_company_glassdoor",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1780240256516,
+      "tag": "0015_v3_2_app_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1780240316516,
+      "tag": "0016_v3_2_profile_comp_target",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1780240376516,
+      "tag": "0017_v3_2_profile_culture",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1780240436516,
+      "tag": "0018_v3_2_company_siblings",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1780240496516,
+      "tag": "0019_v3_2_job_fit_cache",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1780240556516,
+      "tag": "0020_v3_2_job_distance_cache",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1780240616516,
+      "tag": "0021_v3_2_jobs_hidden_flag",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1780240676516,
+      "tag": "0022_v3_2_skill_overrides",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1780240736516,
+      "tag": "0023_v3_2_right_to_work",
+      "breakpoints": true
     }
   ]
 }
