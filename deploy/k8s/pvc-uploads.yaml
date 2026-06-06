@@ -9,6 +9,13 @@ metadata:
   labels:
     app.kubernetes.io/name: rolehunter-app
     app.kubernetes.io/part-of: rolehunter
+  annotations:
+    # Same sync-wave as the app Deployment (its only consumer). local-path is
+    # WaitForFirstConsumer, so the PVC only binds once a pod mounts it — if it
+    # were an earlier wave, ArgoCD would block forever waiting for it to become
+    # Healthy before creating the consumer. Applying them together lets the app
+    # pod trigger binding.
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   accessModes: ["ReadWriteOnce"]
   storageClassName: local-path
