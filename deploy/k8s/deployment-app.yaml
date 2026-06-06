@@ -23,6 +23,7 @@ spec:
         app.kubernetes.io/name: rolehunter-app
         app.kubernetes.io/part-of: rolehunter
     spec:
+      serviceAccountName: rolehunter-ts
       imagePullSecrets:
         - name: ghcr-pull
       containers:
@@ -96,14 +97,12 @@ spec:
               value: "rolehunter"
             - name: TS_USERSPACE
               value: "true"
-            - name: TS_STATE_DIR
-              value: "/tmp/tsstate"
-            # Tailscale >=1.76 auto-detects Kubernetes and tries to persist
-            # state in a `tailscale` Secret (needs RBAC get/update on it, which
-            # this pod's ServiceAccount lacks → CrashLoopBackOff). Empty string
-            # disables kube-secret state so it uses the file state dir above.
+            # Persist node state + `tailscale serve` HTTPS cert in this Secret.
+            # The rolehunter-ts ServiceAccount (rbac-tailscale.yaml) has the
+            # get/create/update permission the sidecar needs for it; without
+            # that the sidecar CrashLoopBackOffs ("secrets is forbidden").
             - name: TS_KUBE_SECRET
-              value: ""
+              value: "rolehunter-ts-state"
             - name: TS_EXTRA_ARGS
               value: "--accept-dns=false"
             - name: TS_SERVE_CONFIG

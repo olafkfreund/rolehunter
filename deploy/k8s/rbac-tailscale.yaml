@@ -1,0 +1,51 @@
+# RBAC for the in-pod Tailscale sidecar.
+#
+# Tailscale's containerboot (>=1.76) detects it's running in Kubernetes and
+# persists node state AND the `tailscale serve` HTTPS cert/endpoint into a
+# Secret in its own namespace. Without permission to manage that Secret the
+# sidecar CrashLoopBackOffs with:
+#   failed to update HTTPS endpoint in tailscale state: secrets is forbidden
+# Give it a dedicated ServiceAccount scoped to just its state Secret in the
+# factory namespace (create is namespace-wide — it can't be name-restricted —
+# but read/write are pinned to the one Secret).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rolehunter-ts
+  labels:
+    app.kubernetes.io/name: rolehunter-app
+    app.kubernetes.io/part-of: rolehunter
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: rolehunter-ts
+  labels:
+    app.kubernetes.io/name: rolehunter-app
+    app.kubernetes.io/part-of: rolehunter
+rules:
+  # Create the state Secret on first run (verbs with resourceNames can't
+  # include create/list, so these are namespace-scoped).
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "list"]
+  # Read/write the sidecar's own state Secret only.
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["rolehunter-ts-state"]
+    verbs: ["get", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rolehunter-ts
+  labels:
+    app.kubernetes.io/name: rolehunter-app
+    app.kubernetes.io/part-of: rolehunter
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rolehunter-ts
+subjects:
+  - kind: ServiceAccount
+    name: rolehunter-ts

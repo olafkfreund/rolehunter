@@ -15,6 +15,7 @@ resources:
   - job-migrate.yaml
   - pvc-uploads.yaml
   - service-app.yaml
+  - rbac-tailscale.yaml
   - deployment-app.yaml
   - configmap-tailscale-serve.yaml
 
