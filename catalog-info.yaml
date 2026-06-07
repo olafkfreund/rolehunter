@@ -34,9 +34,8 @@ metadata:
     - llm
     - job-search
   links:
-    - url: https://rolehunter.tail833f7.ts.net
-      title: Live app (tailnet)
-      icon: dashboard
+    # Public exposure is via in-cluster cloudflared (factory-gitops
+    # infra/cloudflared) — add the live Cloudflare URL here once finalised.
     - url: https://github.com/olafkfreund/rolehunter
       title: GitHub repository
       icon: github

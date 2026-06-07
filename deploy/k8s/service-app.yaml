@@ -1,6 +1,6 @@
-# In-cluster service for the app (used for ArgoCD health + any internal callers).
-# External/tailnet access is via the Tailscale sidecar (serve :443 -> :3000),
-# not this Service.
+# In-cluster service for the app (ArgoCD health + internal callers, and the
+# target the in-cluster cloudflared routes public traffic to). Public exposure
+# is via cloudflared (factory-gitops infra/cloudflared) → this Service :3000.
 apiVersion: v1
 kind: Service
 metadata:

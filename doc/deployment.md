@@ -21,10 +21,11 @@ cluster.
  └────────────┘  │                                   ▼                                                  │
        │ push     │   wave 0  StatefulSet rolehunter-db  (pgvector/pgvector:pg16, local-path PVC)        │
        ▼          │   wave 1  Job        rolehunter-migrate (drizzle migrate, Sync hook)                 │
- GitHub Actions   │   wave 2  Deployment rolehunter-app  ┌─ app (Next.js :3000)                          │
- deploy-image.yml │                                      └─ tailscale sidecar ──► https://rolehunter.tail833f7.ts.net
-   builds GHCR     │   PVC rolehunter-uploads (/app/uploads)                                             │
-   images         └─────────────────────────────────────────────────────────────────────────────────┘
+ GitHub Actions   │   wave 2  Deployment rolehunter-app  ── app (Next.js :3000)                          │
+ deploy-image.yml │   PVC rolehunter-uploads (/app/uploads)                                             │
+   builds GHCR     │                                                                                     │
+   images         └──────────────────────────────────────────────────────────────────────────────────┘
+                       ▲ public traffic: in-cluster cloudflared → svc rolehunter-app:3000 (factory-gitops)
 ```
 
 ## How it's wired (two repos)
@@ -44,26 +45,23 @@ the ArgoCD root app discovers it within ~3 minutes.
 |---|---|---|
 | `rolehunter-db` | StatefulSet + headless Service | `pgvector/pgvector:pg16`, 8Gi `local-path` PVC, **sync-wave 0**. A `/dev/shm` Memory emptyDir avoids the Postgres "Bus error" on initdb under k3d's tiny default shm. |
 | `rolehunter-migrate` | Job (ArgoCD `Sync` hook, **wave 1**) | Runs `node scripts/migrate.mjs` (Drizzle). Idempotent; re-runs each sync. An init-container waits for the DB. |
-| `rolehunter-app` | Deployment + Service | Next.js standalone + Tailscale sidecar, **sync-wave 2**, `Recreate` strategy (RWO uploads PVC). Background scheduler enabled. |
+| `rolehunter-app` | Deployment + Service | Next.js standalone, **sync-wave 2**, `Recreate` strategy (RWO uploads PVC). Background scheduler enabled. |
 | `rolehunter-uploads` | PVC | 5Gi `local-path` for uploaded/generated CVs + PDFs. |
-| `rolehunter-tailscale-serve-config` | ConfigMap | Tailscale `serve` config: `:443` → app `:3000`. |
 
 Sync-waves guarantee ordering: **DB → migrations → app**.
 
-## Networking — no Ingress
+## Networking — Cloudflare Tunnel
 
-The factory cluster has **no Ingress controller**. Each app pod runs a
-**Tailscale sidecar** (userspace mode) that terminates HTTPS on `:443` with a
-cert auto-issued for the tailnet hostname and proxies to the app on
-`127.0.0.1:3000`. RoleHunter is reachable on the freundcloud tailnet at:
-
-**https://rolehunter.tail833f7.ts.net**
-
-See `factory-gitops/docs/sidecar-pattern.md` for the full pattern.
+The factory cluster has **no per-app Ingress**. Public traffic reaches RoleHunter
+through an **in-cluster cloudflared** deployment (factory-gitops
+`infra/cloudflared/`), which routes `rolehunter.<home-domain>` →
+`rolehunter-app.factory.svc.cluster.local:3000`. The app itself needs no
+networking config — exposure is owned centrally by the infra repo. (This
+replaced the earlier per-pod Tailscale sidecar on 2026-06-07.)
 
 ## Secrets (seeded out-of-band — never in git)
 
-Three namespace-scoped Secrets must exist in `factory` before the first sync:
+Two namespace-scoped Secrets must exist in `factory` before the first sync:
 
 - **`rolehunter-db`** — `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`
 - **`rolehunter-app`** — `DATABASE_URL` (required) plus the optional provider keys
@@ -71,8 +69,8 @@ Three namespace-scoped Secrets must exist in `factory` before the first sync:
   `ADZUNA_APP_ID`/`ADZUNA_APP_KEY`, `APIFY_API_TOKEN`, `GOOGLE_MAPS_API_KEY`, …).
   `DATABASE_URL` points at the in-cluster service:
   `postgres://rolehunter:<pw>@rolehunter-db:5432/rolehunter`.
-- **`tailscale-auth-key`** (`TS_AUTHKEY`) and **`ghcr-pull`** (image pull secret)
-  are already present cluster-wide; you don't create them per app.
+- **`ghcr-pull`** (image pull secret) is already present cluster-wide; you don't
+  create it per app.
 
 Exact `kubectl create secret` commands are in
 [`deploy/k8s/README.md`](https://github.com/olafkfreund/rolehunter/blob/main/deploy/k8s/README.md).
@@ -102,8 +100,9 @@ kubectl -n factory logs job/rolehunter-migrate
 # App logs
 kubectl -n factory logs deploy/rolehunter-app -c app
 
-# Health
-curl -fsS https://rolehunter.tail833f7.ts.net/api/health
+# Health (public URL is served by cloudflared; check in-cluster otherwise)
+kubectl -n factory port-forward svc/rolehunter-app 3000:3000 &
+curl -fsS http://localhost:3000/api/health
 
 # Force a fresh sync (or use the ArgoCD UI)
 argocd app sync rolehunter

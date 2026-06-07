@@ -16,13 +16,13 @@ stack.
 |---|---|---|
 | `rolehunter-db` | StatefulSet + headless Service | `pgvector/pgvector:pg16`, 8Gi `local-path` PVC, sync-wave 0, `/dev/shm` Memory emptyDir |
 | `rolehunter-migrate` | Job (ArgoCD `Sync` hook, wave 1) | Drizzle migrations (`node scripts/migrate.mjs`); idempotent, re-runs each sync; waits for DB |
-| `rolehunter-app` | Deployment + Service | Next.js standalone + Tailscale sidecar, sync-wave 2, `Recreate` (RWO uploads) |
+| `rolehunter-app` | Deployment + Service | Next.js standalone, sync-wave 2, `Recreate` (RWO uploads) |
 | `rolehunter-uploads` | PVC | 5Gi `local-path` for uploaded/generated CVs + PDFs |
-| `rolehunter-tailscale-serve-config` | ConfigMap | serve `:443` → app `:3000` |
 
-Exposed on the tailnet at **https://rolehunter.tail833f7.ts.net** via the sidecar.
-There is **no Ingress** — that is the factory cluster convention
-(see `factory-gitops/docs/sidecar-pattern.md`).
+Public exposure is via **in-cluster cloudflared** (factory-gitops
+`infra/cloudflared/`), which routes `rolehunter.<home-domain>` →
+`rolehunter-app.factory.svc.cluster.local:3000`. There is **no per-app Ingress
+or Tailscale sidecar** — that is the factory cluster convention.
 
 ## Sync ordering
 
@@ -60,11 +60,6 @@ namespace `factory` before first sync.
 > overrides, `BUDGET_APIFY_USD_MONTHLY`, …) can also be added as keys on the
 > `rolehunter-app` Secret — `envFrom` injects all of them. See
 > `src/lib/env.ts` for the full validated list.
-
-### `tailscale-auth-key`
-| Key | Notes |
-|---|---|
-| `TS_AUTHKEY` | reusable/ephemeral tailnet auth key — already seeded cluster-wide at bootstrap by the p510 k3d module; you do **not** create it per app |
 
 ### `ghcr-pull`
 Image pull secret for the private GHCR images (`dockerconfigjson`). Already
@@ -104,13 +99,16 @@ kubectl -n factory create secret generic rolehunter-app \
 Built + pushed to GHCR by [`.github/workflows/deploy-image.yml`](../../.github/workflows/deploy-image.yml):
 `ghcr.io/olafkfreund/rolehunter` (runner) and
 `ghcr.io/olafkfreund/rolehunter-migrator` (the `migrator` Dockerfile target).
-Bump the deployed tag centrally in `kustomization.yaml` (`images:`); pin an
-immutable `:<sha>` for production rollouts.
+The deployed tag is pinned in `kustomization.yaml` (`images:`) automatically by
+the build workflow's GitOps write-back — it sets the immutable `:<sha>` and
+commits it to `main`, which is the diff ArgoCD syncs on.
 
 ## Verify
 
 ```bash
 kubectl -n factory get pods -l app.kubernetes.io/part-of=rolehunter
 kubectl -n factory logs job/rolehunter-migrate
-curl -fsS https://rolehunter.tail833f7.ts.net/api/health
+# Health (public URL is served by cloudflared; check in-cluster otherwise):
+kubectl -n factory port-forward svc/rolehunter-app 3000:3000 &
+curl -fsS http://localhost:3000/api/health
 ```
