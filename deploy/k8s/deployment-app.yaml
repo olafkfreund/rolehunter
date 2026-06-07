@@ -1,6 +1,11 @@
-# RoleHunter Next.js app (standalone) + Tailscale sidecar.
+# RoleHunter Next.js app (standalone).
 # Sync-wave 2: rolls out after DB (0) and migrations (1).
 # Recreate strategy because the uploads PVC is RWO (single-node bound).
+#
+# Public exposure: in-cluster cloudflared (factory-gitops infra/cloudflared/)
+# routes rolehunter.<home-domain> → http://rolehunter-app.factory.svc.cluster.local:3000.
+# The Tailscale sidecar was removed 2026-06-07 — see factory-gitops
+# public-ingress architecture for the rationale.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -23,7 +28,6 @@ spec:
         app.kubernetes.io/name: rolehunter-app
         app.kubernetes.io/part-of: rolehunter
     spec:
-      serviceAccountName: rolehunter-ts
       imagePullSecrets:
         - name: ghcr-pull
       containers:
@@ -81,52 +85,7 @@ spec:
               # Headroom for Playwright/Chromium PDF rendering.
               cpu: "2"
               memory: 2Gi
-        # ── Tailscale sidecar (factory-gitops docs/sidecar-pattern.md) ─────
-        - name: tailscale
-          # Docker Hub is Tailscale's canonical registry; the ghcr mirror does
-          # not publish this tag (ghcr.io/tailscale/tailscale:v1.74.0 → 404).
-          image: tailscale/tailscale:v1.78.1
-          imagePullPolicy: IfNotPresent
-          env:
-            - name: TS_AUTHKEY
-              valueFrom:
-                secretKeyRef:
-                  name: tailscale-auth-key
-                  key: TS_AUTHKEY
-            - name: TS_HOSTNAME
-              value: "rolehunter"
-            - name: TS_USERSPACE
-              value: "true"
-            # Persist node state + `tailscale serve` HTTPS cert in this Secret.
-            # The rolehunter-ts ServiceAccount (rbac-tailscale.yaml) has the
-            # get/create/update permission the sidecar needs for it; without
-            # that the sidecar CrashLoopBackOffs ("secrets is forbidden").
-            - name: TS_KUBE_SECRET
-              value: "rolehunter-ts-state"
-            - name: TS_EXTRA_ARGS
-              value: "--accept-dns=false"
-            - name: TS_SERVE_CONFIG
-              value: "/etc/tsconfig/serve.json"
-          volumeMounts:
-            - name: ts-serve-config
-              mountPath: /etc/tsconfig
-              readOnly: true
-          securityContext:
-            runAsUser: 1000
-            runAsNonRoot: true
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: false
-          resources:
-            requests:
-              cpu: 20m
-              memory: 32Mi
-            limits:
-              cpu: 200m
-              memory: 128Mi
       volumes:
         - name: uploads
           persistentVolumeClaim:
             claimName: rolehunter-uploads
-        - name: ts-serve-config
-          configMap:
-            name: rolehunter-tailscale-serve-config

@@ -15,9 +15,7 @@ resources:
   - job-migrate.yaml
   - pvc-uploads.yaml
   - service-app.yaml
-  - rbac-tailscale.yaml
   - deployment-app.yaml
-  - configmap-tailscale-serve.yaml
 
 # Single place to bump the deployed image. The GHCR build workflow
 # (.github/workflows/deploy-image.yml) publishes :<branch> and :<sha> tags;
