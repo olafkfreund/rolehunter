@@ -1,1 +1,0 @@
-ALTER TYPE "public"."job_source" ADD VALUE 'linkedin';
