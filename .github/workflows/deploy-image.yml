@@ -43,7 +43,7 @@ jobs:
   build-push:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write   # write-back the pinned image tag to deploy/k8s
       packages: write
     steps:
       - name: Checkout
@@ -92,6 +92,32 @@ jobs:
           cache-from: type=gha,scope=rolehunter-migrator
           cache-to: type=gha,mode=max,scope=rolehunter-migrator
 
+      # GitOps write-back: pin the deployed image to the immutable :<sha> in
+      # deploy/k8s/kustomization.yaml and commit it back to main. ArgoCD watches
+      # this repo (targetRevision: main) — pushing :main alone does NOT change
+      # the manifest, so ArgoCD would never roll out. Bumping the pinned tag is
+      # the diff that triggers the sync. deploy/k8s/** is intentionally not in
+      # this workflow's path filter, and the commit carries [skip ci], so this
+      # write-back never re-triggers the build.
+      - name: Pin deployed image tag (GitOps write-back)
+        env:
+          SHA: ${{ steps.tags.outputs.sha }}
+        run: |
+          sed -i -E "s|^(\s*newTag:\s*).*$|\1${SHA}|" deploy/k8s/kustomization.yaml
+          echo "--- kustomization images after pin ---"
+          grep -nE "name:|newTag:" deploy/k8s/kustomization.yaml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add deploy/k8s/kustomization.yaml
+          if git diff --cached --quiet; then
+            echo "Image tag already pinned to ${SHA}; nothing to commit."
+            exit 0
+          fi
+          git commit -m "chore(deploy): pin rolehunter images to ${SHA} [skip ci]"
+          # Rebase onto any concurrent main changes, then push back.
+          git pull --rebase origin main
+          git push origin HEAD:main
+
       - name: Summary
         run: |
           {
@@ -100,5 +126,5 @@ jobs:
             echo "- \`${IMAGE_APP}:${{ steps.tags.outputs.branch }}\` / \`:${{ steps.tags.outputs.sha }}\`"
             echo "- \`${IMAGE_MIGRATOR}:${{ steps.tags.outputs.branch }}\` / \`:${{ steps.tags.outputs.sha }}\`"
             echo ""
-            echo "Bump \`deploy/k8s/kustomization.yaml\` images to \`:${{ steps.tags.outputs.sha }}\` for a pinned rollout."
+            echo "Pinned \`deploy/k8s/kustomization.yaml\` to \`:${{ steps.tags.outputs.sha }}\` and pushed to main — ArgoCD will sync the rollout."
           } >> "$GITHUB_STEP_SUMMARY"
