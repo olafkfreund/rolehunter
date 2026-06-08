@@ -6,6 +6,8 @@ import { getActiveCv } from "@/lib/repo/cv";
 import { getJob } from "@/lib/repo/jobs";
 import { insertVariant, listVariantsForJob } from "@/lib/repo/variants";
 import { extractTechTokens } from "@/lib/tech-tokens";
+import { getDb, schema } from "@/lib/db";
+import { eq, desc } from "drizzle-orm";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -40,7 +42,23 @@ export async function POST(req: Request) {
   }
   const { jobId, provider, matchId } = parsed.data;
 
-  const [job, cv] = await Promise.all([getJob(jobId), getActiveCv()]);
+  const db = getDb();
+  const [job, cv, portfolioRows] = await Promise.all([
+    getJob(jobId),
+    getActiveCv(),
+    db
+      .select({
+        title: schema.portfolioItems.title,
+        kind: schema.portfolioItems.kind,
+        description: schema.portfolioItems.description,
+        tech: schema.portfolioItems.tech,
+        role: schema.portfolioItems.role,
+        url: schema.portfolioItems.url,
+      })
+      .from(schema.portfolioItems)
+      .where(eq(schema.portfolioItems.hidden, false))
+      .orderBy(desc(schema.portfolioItems.syncedAt)),
+  ]);
   if (!job) {
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
   }
@@ -51,6 +69,15 @@ export async function POST(req: Request) {
     );
   }
 
+  const portfolioItems = portfolioRows.map((row) => ({
+    title: row.title,
+    kind: row.kind,
+    description: row.description,
+    tech: Array.isArray(row.tech) ? (row.tech as string[]) : [],
+    role: row.role,
+    url: row.url,
+  }));
+
   const jobInput: JobInput = {
     title: job.title,
     company: job.company,
@@ -59,7 +86,7 @@ export async function POST(req: Request) {
   };
 
   const llm = getProvider(provider as Provider);
-  const result = await llm.rewriteCv(cv.parsedJson as CvJson, jobInput);
+  const result = await llm.rewriteCv(cv.parsedJson as CvJson, jobInput, portfolioItems);
 
   const keywords = Array.isArray(result.keywords)
     ? result.keywords.filter((k): k is string => typeof k === "string")

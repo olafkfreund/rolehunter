@@ -74,6 +74,14 @@ export interface CoverLetterInput {
   selectedHook?: string | null;
   selectedEvidence?: string[] | null;
   ctaTone?: string | null;
+  portfolioItems?: Array<{
+    title: string;
+    kind: string;
+    description: string;
+    tech: string[];
+    role?: string | null;
+    url?: string | null;
+  }> | null;
 }
 
 export interface GenerateHooksInput {
@@ -200,7 +208,18 @@ export interface LlmProvider {
   name: Provider;
   extractCv(rawText: string): Promise<CvJson>;
   match(cv: CvJson, job: JobInput): Promise<MatchResult>;
-  rewriteCv(cv: CvJson, job: JobInput): Promise<RewriteResult>;
+  rewriteCv(
+    cv: CvJson,
+    job: JobInput,
+    portfolioItems?: Array<{
+      title: string;
+      kind: string;
+      description: string;
+      tech: string[];
+      role?: string | null;
+      url?: string | null;
+    }> | null,
+  ): Promise<RewriteResult>;
   linkedinSeo(input: LinkedInInput): Promise<LinkedInResult>;
   generateCoverLetter(input: CoverLetterInput): Promise<CoverLetterResult>;
   generateFlashcards(cv: CvJson, job: JobInput): Promise<FlashcardOut[]>;

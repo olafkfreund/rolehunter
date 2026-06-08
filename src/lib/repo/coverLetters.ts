@@ -277,7 +277,24 @@ export async function generateForApplication(
   },
 ): Promise<CoverLetter> {
   const ctx = await loadApplicationWithJob(appId);
-  const [cv, profile] = await Promise.all([getActiveCv(), getProfile()]);
+  const db = getDb();
+  const [cv, profile, portfolioRows] = await Promise.all([
+    getActiveCv(),
+    getProfile(),
+    db
+      .select({
+        title: schema.portfolioItems.title,
+        kind: schema.portfolioItems.kind,
+        description: schema.portfolioItems.description,
+        tech: schema.portfolioItems.tech,
+        role: schema.portfolioItems.role,
+        url: schema.portfolioItems.url,
+      })
+      .from(schema.portfolioItems)
+      .where(eq(schema.portfolioItems.hidden, false))
+      .orderBy(desc(schema.portfolioItems.syncedAt)),
+  ]);
+
   if (!cv) {
     throw new Error("No active CV. Set one on /profile.");
   }
@@ -289,6 +306,15 @@ export async function generateForApplication(
   } else {
     template = await findDefaultOrLatestTemplate();
   }
+
+  const portfolioItems = portfolioRows.map((row) => ({
+    title: row.title,
+    kind: row.kind,
+    description: row.description,
+    tech: Array.isArray(row.tech) ? (row.tech as string[]) : [],
+    role: row.role,
+    url: row.url,
+  }));
 
   const input: CoverLetterInput = {
     cv: cv.parsedJson as CvJson,
@@ -309,6 +335,7 @@ export async function generateForApplication(
     selectedHook: opts.selectedHook,
     selectedEvidence: opts.selectedEvidence?.map((e) => e.text) ?? null,
     ctaTone: opts.ctaTone,
+    portfolioItems,
   };
 
   const llm = getProvider(opts.provider);

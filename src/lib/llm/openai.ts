@@ -106,8 +106,25 @@ export const openaiProvider: LlmProvider = {
     return parseJson<MatchResult>(text);
   },
 
-  async rewriteCv(cv: CvJson, job: JobInput): Promise<RewriteResult> {
-    const user = `## CV\n\n${JSON.stringify(cv, null, 2)}\n\n## Job\n\nTitle: ${job.title}\nCompany: ${job.company}\n\n${job.description}`;
+  async rewriteCv(
+    cv: CvJson,
+    job: JobInput,
+    portfolioItems?: Array<{
+      title: string;
+      kind: string;
+      description: string;
+      tech: string[];
+      role?: string | null;
+      url?: string | null;
+    }> | null,
+  ): Promise<RewriteResult> {
+    const user = [
+      `## CV\n\n${JSON.stringify(cv, null, 2)}`,
+      `## Job\n\nTitle: ${job.title}\nCompany: ${job.company}\n\n${job.description}`,
+      portfolioItems && portfolioItems.length > 0
+        ? `## Candidate Portfolio Sources & Projects\nUse these real projects, repositories, and technical skills as additional context and evidence of candidate skills/experience to enrich the tailored CV sections (Summary, Skills, Projects, Work Experience) as appropriate. Never invent employers or dates:\n${JSON.stringify(portfolioItems, null, 2)}`
+        : "",
+    ].filter(Boolean).join("\n\n");
     const text = await call(SYSTEM_REWRITE_CV, user, 6000);
     return parseJson<RewriteResult>(text);
   },
@@ -123,6 +140,9 @@ export const openaiProvider: LlmProvider = {
       `## CV\n\n${JSON.stringify(input.cv, null, 2)}`,
       `## Job\n\nTitle: ${input.job.title}\nCompany: ${input.job.company}\nLocation: ${input.job.location ?? ""}\n\n${input.job.description}`,
       `## Profile\n\n${JSON.stringify(input.profile, null, 2)}`,
+      input.portfolioItems && input.portfolioItems.length > 0
+        ? `## Candidate Portfolio Sources & Projects\nUse these real projects, repositories, and technical skills as additional context and evidence of candidate skills/experience to enrich the cover letter. Do not invent details:\n${JSON.stringify(input.portfolioItems, null, 2)}`
+        : "",
       input.templateBodyMd ? `## Template\n\n${input.templateBodyMd}` : "",
       input.selectedHook ? `## Selected Hook\nUse this EXACT text as the opening hook paragraph:\n${input.selectedHook}` : "",
       input.selectedEvidence && input.selectedEvidence.length > 0
