@@ -82,78 +82,6 @@ function highlightTree(node: React.ReactNode, used: Set<string>): React.ReactNod
   return node;
 }
 
-const components = {
-  h1: ({ children }: { children?: React.ReactNode }) => (
-    <h3 className="text-[12px] uppercase tracking-[0.18em] font-mono font-medium text-[var(--fg-3)] mt-6 mb-2 pb-1 border-b border-[var(--border)]">
-      {children}
-    </h3>
-  ),
-  h2: ({ children }: { children?: React.ReactNode }) => (
-    <h3 className="text-[12px] uppercase tracking-[0.18em] font-mono font-medium text-[var(--fg-3)] mt-6 mb-2 pb-1 border-b border-[var(--border)]">
-      {children}
-    </h3>
-  ),
-  h3: ({ children }: { children?: React.ReactNode }) => (
-    <h3 className="text-[12px] uppercase tracking-[0.18em] font-mono font-medium text-[var(--fg-3)] mt-6 mb-2 pb-1 border-b border-[var(--border)]">
-      {children}
-    </h3>
-  ),
-  h4: ({ children }: { children?: React.ReactNode }) => (
-    <h3 className="text-[12px] uppercase tracking-[0.18em] font-mono font-medium text-[var(--fg-3)] mt-6 mb-2 pb-1 border-b border-[var(--border)]">
-      {children}
-    </h3>
-  ),
-  h5: ({ children }: { children?: React.ReactNode }) => (
-    <h3 className="text-[12px] uppercase tracking-[0.18em] font-mono font-medium text-[var(--fg-3)] mt-6 mb-2 pb-1 border-b border-[var(--border)]">
-      {children}
-    </h3>
-  ),
-  h6: ({ children }: { children?: React.ReactNode }) => (
-    <h3 className="text-[12px] uppercase tracking-[0.18em] font-mono font-medium text-[var(--fg-3)] mt-6 mb-2 pb-1 border-b border-[var(--border)]">
-      {children}
-    </h3>
-  ),
-  p: ({ children }: { children?: React.ReactNode }) => (
-    <p className="text-[15px] leading-[1.65] text-[var(--fg-2)] my-3">
-      {children}
-    </p>
-  ),
-  ul: ({ children }: { children?: React.ReactNode }) => (
-    <ul className="space-y-1.5 pl-1 list-none my-3">
-      {children}
-    </ul>
-  ),
-  li: ({ children }: { children?: React.ReactNode }) => (
-    <li
-      className="text-[14px] leading-[1.55] text-[var(--fg-2)] relative pl-5"
-      style={{ listStyleType: "none" }}
-    >
-      <span
-        className="absolute left-0 top-0.5 text-[var(--accent)] font-mono text-[11px]"
-        aria-hidden
-      >
-        ▸
-      </span>
-      <span>{children}</span>
-    </li>
-  ),
-  ol: ({ children }: { children?: React.ReactNode }) => (
-    <ol className="space-y-1.5 pl-5 list-decimal text-[14px] leading-[1.55] text-[var(--fg-2)] my-3">
-      {children}
-    </ol>
-  ),
-  strong: ({ children }: { children?: React.ReactNode }) => (
-    <strong className="font-semibold text-[var(--fg-1)]">
-      {children}
-    </strong>
-  ),
-  em: ({ children }: { children?: React.ReactNode }) => (
-    <em className="italic">
-      {children}
-    </em>
-  ),
-};
-
 export function JobDescription({ description }: Props) {
   const text = description?.trim();
   if (!text) {
@@ -167,18 +95,86 @@ export function JobDescription({ description }: Props) {
   const cleanedText = cleanMarkdown(text);
   const used = new Set<string>();
 
-  const renderedMarkdown = (
-    <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-      {cleanedText}
-    </ReactMarkdown>
-  );
+  const components = {
+    h1: ({ children }: { children?: React.ReactNode }) => (
+      <h3 className="text-[12px] uppercase tracking-[0.18em] font-mono font-medium text-[var(--fg-3)] mt-6 mb-2 pb-1 border-b border-[var(--border)]">
+        {highlightTree(children, used)}
+      </h3>
+    ),
+    h2: ({ children }: { children?: React.ReactNode }) => (
+      <h3 className="text-[12px] uppercase tracking-[0.18em] font-mono font-medium text-[var(--fg-3)] mt-6 mb-2 pb-1 border-b border-[var(--border)]">
+        {highlightTree(children, used)}
+      </h3>
+    ),
+    h3: ({ children }: { children?: React.ReactNode }) => (
+      <h3 className="text-[12px] uppercase tracking-[0.18em] font-mono font-medium text-[var(--fg-3)] mt-6 mb-2 pb-1 border-b border-[var(--border)]">
+        {highlightTree(children, used)}
+      </h3>
+    ),
+    h4: ({ children }: { children?: React.ReactNode }) => (
+      <h3 className="text-[12px] uppercase tracking-[0.18em] font-mono font-medium text-[var(--fg-3)] mt-6 mb-2 pb-1 border-b border-[var(--border)]">
+        {highlightTree(children, used)}
+      </h3>
+    ),
+    h5: ({ children }: { children?: React.ReactNode }) => (
+      <h3 className="text-[12px] uppercase tracking-[0.18em] font-mono font-medium text-[var(--fg-3)] mt-6 mb-2 pb-1 border-b border-[var(--border)]">
+        {highlightTree(children, used)}
+      </h3>
+    ),
+    h6: ({ children }: { children?: React.ReactNode }) => (
+      <h3 className="text-[12px] uppercase tracking-[0.18em] font-mono font-medium text-[var(--fg-3)] mt-6 mb-2 pb-1 border-b border-[var(--border)]">
+        {highlightTree(children, used)}
+      </h3>
+    ),
+    p: ({ children }: { children?: React.ReactNode }) => (
+      <p className="text-[15px] leading-[1.65] text-[var(--fg-2)] my-3">
+        {highlightTree(children, used)}
+      </p>
+    ),
+    ul: ({ children }: { children?: React.ReactNode }) => (
+      <ul className="space-y-1.5 pl-1 list-none my-3">
+        {children}
+      </ul>
+    ),
+    li: ({ children }: { children?: React.ReactNode }) => (
+      <li
+        className="text-[14px] leading-[1.55] text-[var(--fg-2)] relative pl-5"
+        style={{ listStyleType: "none" }}
+      >
+        <span
+          className="absolute left-0 top-0.5 text-[var(--accent)] font-mono text-[11px]"
+          aria-hidden
+        >
+          ▸
+        </span>
+        <span>{highlightTree(children, used)}</span>
+      </li>
+    ),
+    ol: ({ children }: { children?: React.ReactNode }) => (
+      <ol className="space-y-1.5 pl-5 list-decimal text-[14px] leading-[1.55] text-[var(--fg-2)] my-3">
+        {children}
+      </ol>
+    ),
+    strong: ({ children }: { children?: React.ReactNode }) => (
+      <strong className="font-semibold text-[var(--fg-1)]">
+        {highlightTree(children, used)}
+      </strong>
+    ),
+    em: ({ children }: { children?: React.ReactNode }) => (
+      <em className="italic">
+        {highlightTree(children, used)}
+      </em>
+    ),
+  };
 
   return (
     <article
       className="max-w-[72ch] space-y-4"
       style={{ fontFamily: "var(--font-serif)" }}
     >
-      {highlightTree(renderedMarkdown, used)}
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+        {cleanedText}
+      </ReactMarkdown>
     </article>
   );
 }
