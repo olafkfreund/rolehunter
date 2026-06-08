@@ -1,8 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Sparkles, Check, Loader2 } from "lucide-react";
 import type { SearchProfile, SearchRun } from "@/lib/db/schema";
+import type { SuggestedRole } from "@/lib/llm/types";
+
 
 type Frequency = "hourly" | "every_4h" | "daily" | "weekly";
 type RemoteMode = "remote" | "hybrid" | "onsite";
@@ -125,6 +129,64 @@ export function SearchProfilesPanel({
   const [expandedRuns, setExpandedRuns] = useState<number | null>(null);
   const [runs, setRuns] = useState<Record<number, SearchRun[]>>({});
   const [error, setError] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<SuggestedRole[] | null>(null);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSuggestions() {
+      setLoadingSuggestions(true);
+      try {
+        const res = await fetch("/api/cv/suggest-roles");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        if (data && Array.isArray(data.suggestions)) {
+          setSuggestions(data.suggestions);
+        }
+      } catch {
+        // fail silently
+      } finally {
+        if (!cancelled) setLoadingSuggestions(false);
+      }
+    }
+    loadSuggestions();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function approveSuggestion(sug: SuggestedRole) {
+    setBusy(true);
+    setError(null);
+    try {
+      const body = {
+        name: sug.name,
+        query: sug.query,
+        sources: ["jsearch", "linkedin"],
+        frequency: "daily",
+        remoteModes: ["remote", "hybrid"],
+        active: true,
+      };
+      const res = await fetch("/api/search-profiles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(err.error ?? `Failed (${res.status})`);
+      }
+      setSuggestions((prev) => prev ? prev.filter((item) => item.query !== sug.query) : null);
+      await refresh();
+      toast.success(`Search profile "${sug.name}" approved and added!`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to approve suggestion");
+    } finally {
+      setBusy(false);
+    }
+  }
+
 
   function toggleSource(id: SourceId) {
     setForm((f) => ({
@@ -254,6 +316,53 @@ export function SearchProfilesPanel({
 
   return (
     <div className="space-y-4">
+      {/* AI Recommended Searches */}
+      {loadingSuggestions && (
+        <div className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--muted)]/10 p-4 text-sm text-[var(--muted-foreground)]">
+          <Loader2 className="h-4 w-4 animate-spin text-[var(--accent)]" />
+          <span>Analyzing your active CV to suggest search profiles...</span>
+        </div>
+      )}
+
+      {!loadingSuggestions && suggestions && suggestions.length > 0 && (
+        <div className="border border-[var(--accent)]/30 rounded-lg bg-[var(--accent)]/5 p-4 space-y-3 relative overflow-hidden transition-all hover:border-[var(--accent)]/50">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-[var(--accent)] animate-pulse" />
+            <h3 className="text-sm font-semibold text-[var(--foreground)]">AI Recommended Search Profiles</h3>
+          </div>
+          <p className="text-xs text-[var(--muted-foreground)]">
+            Based on your uploaded CV, these roles are the best match for your experience. Approve them to add them to your automated saved searches.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {suggestions.map((sug, idx) => (
+              <div
+                key={`sug-${idx}`}
+                className="border border-[var(--border)] rounded-md bg-[var(--background)] p-3 flex flex-col justify-between hover:shadow-md transition-all"
+              >
+                <div className="space-y-1.5">
+                  <div className="text-xs font-bold text-[var(--foreground)]">{sug.name}</div>
+                  <div className="text-[10px] font-mono text-[var(--muted-foreground)] bg-[var(--muted)]/50 px-1.5 py-0.5 rounded inline-block">
+                    query: "{sug.query}"
+                  </div>
+                  <p className="text-[11px] text-[var(--muted-foreground)] leading-relaxed">{sug.reason}</p>
+                </div>
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => approveSuggestion(sug)}
+                    className="w-full flex items-center justify-center gap-1 rounded bg-[var(--foreground)] px-2.5 py-1 text-xs font-semibold text-[var(--background)] hover:opacity-90 disabled:opacity-50 transition-all cursor-pointer"
+                  >
+                    <Check className="h-3 w-3" />
+                    Approve &amp; Search
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="text-sm text-[var(--muted-foreground)]">
           {profiles.length} {profiles.length === 1 ? "profile" : "profiles"}

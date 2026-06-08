@@ -190,6 +190,12 @@ export interface VerifyCvResult {
   discrepancies: VerifyCvDiscrepancy[];
 }
 
+export interface SuggestedRole {
+  name: string;
+  query: string;
+  reason: string;
+}
+
 export interface LlmProvider {
   name: Provider;
   extractCv(rawText: string): Promise<CvJson>;
@@ -205,4 +211,5 @@ export interface LlmProvider {
   rewriteSection(input: RewriteSectionInput): Promise<RewriteSectionResult>;
   verifyCv(cv: CvJson, tailoredMarkdown: string): Promise<VerifyCvResult>;
   generateCoverLetterHooks(input: GenerateHooksInput): Promise<GenerateHooksResult>;
+  suggestRoles(cv: CvJson): Promise<SuggestedRole[]>;
 }

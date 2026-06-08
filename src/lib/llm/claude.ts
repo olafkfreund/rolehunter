@@ -14,6 +14,7 @@ import {
   SYSTEM_REWRITE_SECTION,
   SYSTEM_VERIFY_CV,
   SYSTEM_COVER_LETTER_HOOKS,
+  SYSTEM_SUGGEST_ROLES,
 } from "./prompts";
 import type {
   CoverLetterInput,
@@ -37,6 +38,7 @@ import type {
   VerifyCvResult,
   GenerateHooksInput,
   GenerateHooksResult,
+  SuggestedRole,
 } from "./types";
 
 let client: Anthropic | null = null;
@@ -187,6 +189,12 @@ export const claudeProvider: LlmProvider = {
     ].join("\n\n");
     const text = await call(SYSTEM_COVER_LETTER_HOOKS, user, 2048);
     return parseJson<GenerateHooksResult>(text);
+  },
+  
+  async suggestRoles(cv: CvJson): Promise<SuggestedRole[]> {
+    const user = `## CV\n\n${JSON.stringify(cv, null, 2)}`;
+    const text = await call(SYSTEM_SUGGEST_ROLES, user, 2048);
+    return parseJson<SuggestedRole[]>(text);
   },
 };
 
