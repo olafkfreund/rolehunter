@@ -14,6 +14,7 @@ import { getProvider } from "@/lib/llm";
 import type { CvJson, JobInput, Provider } from "@/lib/llm/types";
 import { getActiveCv } from "@/lib/repo/cv";
 import { insertMatch } from "@/lib/repo/matches";
+import { getActivePortfolioItems } from "@/lib/repo/portfolio";
 
 type ScoreTask = { jobId: number };
 
@@ -80,7 +81,10 @@ function drain(): void {
 async function runScoreTask({ jobId }: ScoreTask): Promise<void> {
   const db = getDb();
 
-  const cv = await getActiveCv();
+  const [cv, portfolioItems] = await Promise.all([
+    getActiveCv(),
+    getActivePortfolioItems(),
+  ]);
   if (!cv) {
     // Common in fresh installs; not an error.
     return;
@@ -114,7 +118,7 @@ async function runScoreTask({ jobId }: ScoreTask): Promise<void> {
 
   let result;
   try {
-    result = await llm.match(cv.parsedJson as CvJson, jobInput);
+    result = await llm.match(cv.parsedJson as CvJson, jobInput, portfolioItems);
   } catch (err) {
     console.warn("[score-queue] llm.match failed", {
       jobId,

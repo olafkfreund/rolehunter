@@ -237,3 +237,28 @@ export async function toggleHidden(id: number, hidden: boolean): Promise<Portfol
     .returning();
   return row ?? null;
 }
+
+export async function getActivePortfolioItems() {
+  const db = getDb();
+  const rows = await db
+    .select({
+      title: schema.portfolioItems.title,
+      kind: schema.portfolioItems.kind,
+      description: schema.portfolioItems.description,
+      tech: schema.portfolioItems.tech,
+      role: schema.portfolioItems.role,
+      url: schema.portfolioItems.url,
+    })
+    .from(schema.portfolioItems)
+    .where(eq(schema.portfolioItems.hidden, false))
+    .orderBy(desc(schema.portfolioItems.syncedAt));
+
+  return rows.map((row) => ({
+    title: row.title,
+    kind: row.kind,
+    description: row.description,
+    tech: Array.isArray(row.tech) ? (row.tech as string[]) : [],
+    role: row.role,
+    url: row.url,
+  }));
+}

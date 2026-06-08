@@ -25,6 +25,9 @@ export const SYSTEM_MATCH = `You are an expert technical recruiter scoring a can
 You will receive:
 1. A structured CV (JSON).
 2. A job listing (title, company, description).
+3. Optionally, a candidate portfolio of projects, repositories, and technical skills (JSON).
+
+Use the portfolio as additional evidence of the candidate's skills and experience. If a skill, tool, or technology is required by the job but is missing or weak in the main CV, check the portfolio. If the candidate has built projects or repositories using it, treat it as a match (evidence from portfolio) rather than a gap, and factor it positively into the overall score and strengths.
 
 Return ONLY JSON:
 {

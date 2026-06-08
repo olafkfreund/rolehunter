@@ -5,6 +5,7 @@ import type { CvJson, JobInput, Provider } from "@/lib/llm/types";
 import { getActiveCv } from "@/lib/repo/cv";
 import { getJob } from "@/lib/repo/jobs";
 import { insertVariant, listVariantsForJob } from "@/lib/repo/variants";
+import { getActivePortfolioItems } from "@/lib/repo/portfolio";
 import { extractTechTokens } from "@/lib/tech-tokens";
 import { getDb, schema } from "@/lib/db";
 import { eq, desc } from "drizzle-orm";
@@ -42,22 +43,10 @@ export async function POST(req: Request) {
   }
   const { jobId, provider, matchId } = parsed.data;
 
-  const db = getDb();
-  const [job, cv, portfolioRows] = await Promise.all([
+  const [job, cv, portfolioItems] = await Promise.all([
     getJob(jobId),
     getActiveCv(),
-    db
-      .select({
-        title: schema.portfolioItems.title,
-        kind: schema.portfolioItems.kind,
-        description: schema.portfolioItems.description,
-        tech: schema.portfolioItems.tech,
-        role: schema.portfolioItems.role,
-        url: schema.portfolioItems.url,
-      })
-      .from(schema.portfolioItems)
-      .where(eq(schema.portfolioItems.hidden, false))
-      .orderBy(desc(schema.portfolioItems.syncedAt)),
+    getActivePortfolioItems(),
   ]);
   if (!job) {
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
@@ -68,15 +57,6 @@ export async function POST(req: Request) {
       { status: 409 },
     );
   }
-
-  const portfolioItems = portfolioRows.map((row) => ({
-    title: row.title,
-    kind: row.kind,
-    description: row.description,
-    tech: Array.isArray(row.tech) ? (row.tech as string[]) : [],
-    role: row.role,
-    url: row.url,
-  }));
 
   const jobInput: JobInput = {
     title: job.title,

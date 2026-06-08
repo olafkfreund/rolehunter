@@ -207,7 +207,18 @@ export interface SuggestedRole {
 export interface LlmProvider {
   name: Provider;
   extractCv(rawText: string): Promise<CvJson>;
-  match(cv: CvJson, job: JobInput): Promise<MatchResult>;
+  match(
+    cv: CvJson,
+    job: JobInput,
+    portfolioItems?: Array<{
+      title: string;
+      kind: string;
+      description: string;
+      tech: string[];
+      role?: string | null;
+      url?: string | null;
+    }> | null,
+  ): Promise<MatchResult>;
   rewriteCv(
     cv: CvJson,
     job: JobInput,

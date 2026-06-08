@@ -105,8 +105,25 @@ export const ollamaProvider: LlmProvider = {
     return parseJson<CvJson>(text);
   },
 
-  async match(cv: CvJson, job: JobInput): Promise<MatchResult> {
-    const user = `## CV\n\n${JSON.stringify(cv, null, 2)}\n\n## Job\n\nTitle: ${job.title}\nCompany: ${job.company}\nLocation: ${job.location ?? ""}\n\n${job.description}`;
+  async match(
+    cv: CvJson,
+    job: JobInput,
+    portfolioItems?: Array<{
+      title: string;
+      kind: string;
+      description: string;
+      tech: string[];
+      role?: string | null;
+      url?: string | null;
+    }> | null,
+  ): Promise<MatchResult> {
+    const user = [
+      `## CV\n\n${JSON.stringify(cv, null, 2)}`,
+      `## Job\n\nTitle: ${job.title}\nCompany: ${job.company}\nLocation: ${job.location ?? ""}\n\n${job.description}`,
+      portfolioItems && portfolioItems.length > 0
+        ? `## Candidate Portfolio Sources & Projects\nUse these real projects, repositories, and technical skills as additional context and evidence of candidate skills/experience to enrich the evaluation (consider them when assigning the score and listing strengths/gaps):\n${JSON.stringify(portfolioItems, null, 2)}`
+        : "",
+    ].filter(Boolean).join("\n\n");
     const text = await call(SYSTEM_MATCH, user, 2048);
     return parseJson<MatchResult>(text);
   },

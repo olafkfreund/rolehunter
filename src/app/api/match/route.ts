@@ -5,6 +5,7 @@ import type { CvJson, JobInput, Provider } from "@/lib/llm/types";
 import { getActiveCv } from "@/lib/repo/cv";
 import { getJob } from "@/lib/repo/jobs";
 import { getLatestMatch, insertMatch } from "@/lib/repo/matches";
+import { getActivePortfolioItems } from "@/lib/repo/portfolio";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -38,12 +39,14 @@ export async function POST(req: Request) {
   }
   const { jobId, provider } = parsed.data;
 
-  const job = await getJob(jobId);
+  const [job, cv, portfolioItems] = await Promise.all([
+    getJob(jobId),
+    getActiveCv(),
+    getActivePortfolioItems(),
+  ]);
   if (!job) {
     return NextResponse.json({ error: "Job not found" }, { status: 404 });
   }
-
-  const cv = await getActiveCv();
   if (!cv) {
     return NextResponse.json({ error: "No CV uploaded" }, { status: 412 });
   }
@@ -56,7 +59,7 @@ export async function POST(req: Request) {
   };
 
   const llm = getProvider(provider as Provider);
-  const result = await llm.match(cv.parsedJson as CvJson, jobInput);
+  const result = await llm.match(cv.parsedJson as CvJson, jobInput, portfolioItems);
 
   const strengths = Array.isArray(result.strengths)
     ? result.strengths.filter((s): s is string => typeof s === "string")
