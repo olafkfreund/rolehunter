@@ -22,6 +22,6 @@ resources:
 # pin to an immutable :<sha> for production rollouts.
 images:
   - name: ghcr.io/olafkfreund/rolehunter
-    newTag: aa9ddce4e721
+    newTag: 6ac3e91ae464
   - name: ghcr.io/olafkfreund/rolehunter-migrator
-    newTag: aa9ddce4e721
+    newTag: 6ac3e91ae464
