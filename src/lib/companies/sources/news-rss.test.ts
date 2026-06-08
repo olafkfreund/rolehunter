@@ -60,6 +60,19 @@ describe("news-rss.parseRssItems", () => {
     expect(items[1].title).toBe("Untitled item without CDATA");
   });
 
+  it("strips encoded HTML tags in description", () => {
+    const xml = `<?xml version="1.0"?>
+<rss><channel><item>
+  <title>Test Title</title>
+  <link>https://news.example.com/c</link>
+  <pubDate>Mon, 20 May 2026 09:30:00 GMT</pubDate>
+  <description>&lt;a href="x"&gt;Reuters&lt;/a&gt;: Stripe announced...</description>
+</item></channel></rss>`;
+    const items = parseRssItems(xml);
+    expect(items).toHaveLength(1);
+    expect(items[0].summary).toBe("Reuters: Stripe announced...");
+  });
+
   it("returns [] on malformed XML", () => {
     expect(parseRssItems("not xml")).toEqual([]);
   });
