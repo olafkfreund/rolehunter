@@ -27,11 +27,62 @@ export function SettingsEditor({ initialStates }: Props) {
   const [ok, setOk] = useState<string | null>(null);
   const [requiresRestart, setRequiresRestart] = useState(false);
 
+  // Ollama states
+  const [ollamaModels, setOllamaModels] = useState<string[] | null>(null);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [ollamaError, setOllamaError] = useState<string | null>(null);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<string | null>(null);
+
   async function reload() {
     const res = await fetch("/api/settings/runtime");
     if (res.ok) {
       const j = (await res.json()) as { states: SettingState[] };
       setStates(j.states);
+    }
+  }
+
+  useEffect(() => {
+    if (editing === "OLLAMA_MODEL") {
+      setLoadingModels(true);
+      setOllamaError(null);
+      fetch("/api/settings/ollama-models")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            setOllamaError(data.error);
+          } else if (data.models) {
+            setOllamaModels(data.models);
+          }
+        })
+        .catch((err) => {
+          setOllamaError(err instanceof Error ? err.message : String(err));
+        })
+        .finally(() => {
+          setLoadingModels(false);
+        });
+    } else {
+      setOllamaModels(null);
+      setOllamaError(null);
+    }
+    setConnectionStatus(null);
+  }, [editing]);
+
+  async function testOllamaConnection(url: string) {
+    setTestingConnection(true);
+    setConnectionStatus(null);
+    try {
+      const res = await fetch(`/api/settings/ollama-models?baseUrl=${encodeURIComponent(url)}`);
+      const data = await res.json();
+      if (data.error) {
+        setConnectionStatus(`Error: ${data.error}`);
+      } else if (data.models) {
+        setConnectionStatus(`Success! Found ${data.models.length} models.`);
+      }
+    } catch (err) {
+      setConnectionStatus(`Failed to connect: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setTestingConnection(false);
     }
   }
 
@@ -68,7 +119,7 @@ export function SettingsEditor({ initialStates }: Props) {
 
   function startEdit(s: SettingState) {
     setEditing(s.key);
-    setDraft("");
+    setDraft(s.isSecret ? "" : s.masked);
     setErr(null);
     setOk(null);
   }
@@ -143,54 +194,135 @@ export function SettingsEditor({ initialStates }: Props) {
                 <div className="mt-0.5 text-[12px] text-[var(--fg-3)]">{s.description}</div>
 
                 {editing === s.key ? (
-                  <div className="mt-2 flex gap-2">
-                    <input
-                      type={s.isSecret && !reveal[s.key] ? "password" : "text"}
-                      value={draft}
-                      autoFocus
-                      placeholder={s.placeholder ?? "(empty)"}
-                      onChange={(e) => setDraft(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          save(s.key);
-                        }
-                        if (e.key === "Escape") {
-                          setEditing(null);
-                          setDraft("");
-                        }
-                      }}
-                      className="input flex-1 font-mono text-sm"
-                    />
-                    {s.isSecret && (
+                  <div className="mt-2 space-y-2">
+                    <div className="flex gap-2">
+                      {s.key === "OLLAMA_MODEL" ? (
+                        loadingModels ? (
+                          <div className="flex-1 text-xs text-[var(--fg-3)] flex items-center gap-2">
+                            <span className="w-4 h-4 border-2 border-t-transparent border-[var(--accent)] rounded-full animate-spin" />
+                            Loading models from host...
+                          </div>
+                        ) : ollamaModels && ollamaModels.length > 0 ? (
+                          <select
+                            value={draft}
+                            onChange={(e) => setDraft(e.target.value)}
+                            className="input flex-1 font-mono text-sm"
+                          >
+                            <option value="">-- Select a model --</option>
+                            {ollamaModels.map((m) => (
+                              <option key={m} value={m}>
+                                {m}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            value={draft}
+                            autoFocus
+                            placeholder={s.placeholder ?? "(empty)"}
+                            onChange={(e) => setDraft(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                save(s.key);
+                              }
+                              if (e.key === "Escape") {
+                                setEditing(null);
+                                setDraft("");
+                              }
+                            }}
+                            className="input flex-1 font-mono text-sm"
+                          />
+                        )
+                      ) : (
+                        <input
+                          type={s.isSecret && !reveal[s.key] ? "password" : "text"}
+                          value={draft}
+                          autoFocus
+                          placeholder={s.placeholder ?? "(empty)"}
+                          onChange={(e) => setDraft(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              save(s.key);
+                            }
+                            if (e.key === "Escape") {
+                              setEditing(null);
+                              setDraft("");
+                            }
+                          }}
+                          className="input flex-1 font-mono text-sm"
+                        />
+                      )}
+                      {s.isSecret && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setReveal((r) => ({ ...r, [s.key]: !r[s.key] }))
+                          }
+                          className="btn btn-ghost text-xs"
+                        >
+                          {reveal[s.key] ? "hide" : "show"}
+                        </button>
+                      )}
                       <button
                         type="button"
-                        onClick={() =>
-                          setReveal((r) => ({ ...r, [s.key]: !r[s.key] }))
-                        }
+                        onClick={() => save(s.key)}
+                        disabled={busy}
+                        className="btn btn-primary text-xs"
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditing(null);
+                          setDraft("");
+                        }}
                         className="btn btn-ghost text-xs"
                       >
-                        {reveal[s.key] ? "hide" : "show"}
+                        Cancel
                       </button>
+                    </div>
+
+                    {s.key === "OLLAMA_MODEL" && (
+                      <div className="text-xs">
+                        {ollamaError ? (
+                          <div className="text-[var(--danger)] mt-1">
+                            ⚠️ {ollamaError} (Type model manually if needed)
+                          </div>
+                        ) : ollamaModels && ollamaModels.length > 0 ? (
+                          <div className="text-[var(--ok)] mt-1">
+                            ✓ Found {ollamaModels.length} models running on the host.
+                          </div>
+                        ) : null}
+                      </div>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => save(s.key)}
-                      disabled={busy}
-                      className="btn btn-primary text-xs"
-                    >
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditing(null);
-                        setDraft("");
-                      }}
-                      className="btn btn-ghost text-xs"
-                    >
-                      Cancel
-                    </button>
+
+                    {s.key === "OLLAMA_BASE_URL" && (
+                      <div className="text-xs mt-1 flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={testingConnection}
+                          onClick={() => testOllamaConnection(draft)}
+                          className="btn btn-ghost text-[10px] py-0.5 px-2 bg-[var(--bg-elev-2)] border border-[var(--border)]"
+                        >
+                          {testingConnection ? "Testing..." : "Test Connection"}
+                        </button>
+                        {connectionStatus && (
+                          <span
+                            className={
+                              connectionStatus.startsWith("Success")
+                                ? "text-[var(--ok)]"
+                                : "text-[var(--danger)]"
+                            }
+                          >
+                            {connectionStatus}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="mt-2 flex items-center gap-3 text-[12px]">
