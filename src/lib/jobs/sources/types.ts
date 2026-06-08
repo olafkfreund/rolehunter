@@ -12,7 +12,9 @@ export type JobSourceId =
   | "apify"
   | "greenhouse"
   | "lever"
-  | "workday";
+  | "workday"
+  | "glassdoor"
+  | "reed";
 
 export type RemoteMode = "remote" | "hybrid" | "onsite";
 export type SalaryPeriod = "year" | "month" | "hour";

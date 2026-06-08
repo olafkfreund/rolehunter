@@ -19,6 +19,8 @@ const BASE_PRICING: Record<BudgetKey, PricingEntry> = {
   dice:       { perCall: 0,      unit: "free" },
   jobspy:     { perCall: 0,      unit: "free-library" },
   apify:      { perCall: 0.05,   unit: "usd-per-actor-run" },
+  glassdoor:  { perCall: 0.05,   unit: "usd-per-actor-run" },
+  reed:       { perCall: 0,      unit: "free-developer-api" },
   greenhouse: { perCall: 0,      unit: "free-public-api" },
   lever:      { perCall: 0,      unit: "free-public-api" },
   workday:    { perCall: 0,      unit: "free-public-json" },
@@ -55,6 +57,7 @@ export function estimatedCostFor(source: BudgetKey): number {
 export function monthlyCapFor(source: BudgetKey): number {
   switch (source) {
     case "apify":
+    case "glassdoor":
       return Number(process.env.BUDGET_APIFY_USD_MONTHLY ?? 5);
     case "auto_score":
       return Number(process.env.BUDGET_AUTO_SCORE_USD_MONTHLY ?? 10);

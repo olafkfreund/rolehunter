@@ -15,6 +15,8 @@ const schema = z.object({
   APIFY_API_TOKEN: z.string().optional().default(""),
   APIFY_LINKEDIN_ACTOR_ID: z.string().optional().default(""),
   APIFY_GLASSDOOR_ACTOR_ID: z.string().optional().default(""),
+  APIFY_GLASSDOOR_JOBS_ACTOR_ID: z.string().optional().default(""),
+  REED_API_KEY: z.string().optional().default(""),
   // v3.2 (#43 final-stretch) — extra Apify actors for company enrichment
   APIFY_LEVELS_FYI_ACTOR_ID: z.string().optional().default(""),
   APIFY_LAYOFFS_ACTOR_ID: z.string().optional().default(""),

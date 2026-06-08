@@ -111,6 +111,23 @@ export async function getDiagnostics(): Promise<SettingsDiagnostics> {
         : "no actor id set",
     ),
     row(
+      "glassdoor",
+      "Glassdoor (via Apify)",
+      "On-demand Glassdoor job search. Capped monthly by BUDGET_APIFY_USD_MONTHLY.",
+      ["APIFY_API_TOKEN", "APIFY_GLASSDOOR_JOBS_ACTOR_ID"],
+      !!env.APIFY_API_TOKEN && !!env.APIFY_GLASSDOOR_JOBS_ACTOR_ID,
+      env.APIFY_GLASSDOOR_JOBS_ACTOR_ID
+        ? `actor: ${env.APIFY_GLASSDOOR_JOBS_ACTOR_ID}`
+        : "no actor id set",
+    ),
+    row(
+      "reed",
+      "Reed.co.uk",
+      "UK job board search via Reed Developer API.",
+      ["REED_API_KEY"],
+      !!env.REED_API_KEY,
+    ),
+    row(
       "ats-greenhouse",
       "Greenhouse (ATS)",
       "Public board scrape per company. No key required.",

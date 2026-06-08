@@ -21,7 +21,9 @@ type SourceId =
   | "paste"
   | "greenhouse"
   | "lever"
-  | "workday";
+  | "workday"
+  | "glassdoor"
+  | "reed";
 
 const SOURCES: { id: SourceId; label: string; needsCompanies?: boolean }[] = [
   { id: "jsearch", label: "JSearch" },
@@ -31,6 +33,8 @@ const SOURCES: { id: SourceId; label: string; needsCompanies?: boolean }[] = [
   { id: "indeed", label: "Indeed (MCP)" },
   { id: "dice", label: "Dice (MCP)" },
   { id: "apify", label: "Apify on-demand (paid)" },
+  { id: "glassdoor", label: "Glassdoor (via Apify)" },
+  { id: "reed", label: "Reed.co.uk" },
   { id: "greenhouse", label: "Greenhouse (ATS)", needsCompanies: true },
   { id: "lever", label: "Lever (ATS)", needsCompanies: true },
   { id: "workday", label: "Workday (ATS)", needsCompanies: true },

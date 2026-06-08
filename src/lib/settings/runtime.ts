@@ -23,6 +23,8 @@ export const EDITABLE_KEYS = [
   "ADZUNA_APP_KEY",
   "APIFY_API_TOKEN",
   "APIFY_GLASSDOOR_ACTOR_ID",
+  "APIFY_GLASSDOOR_JOBS_ACTOR_ID",
+  "REED_API_KEY",
   "DEFAULT_LLM_PROVIDER",
 ] as const;
 export type EditableKey = (typeof EDITABLE_KEYS)[number];
@@ -34,6 +36,7 @@ export const SECRET_KEYS = new Set<EditableKey>([
   "JSEARCH_RAPIDAPI_KEY",
   "ADZUNA_APP_KEY",
   "APIFY_API_TOKEN",
+  "REED_API_KEY",
 ]);
 
 interface KeyMeta {
@@ -109,10 +112,21 @@ export const KEY_META: Record<EditableKey, KeyMeta> = {
     validate: (v) => (v && !v.startsWith("apify_api_") ? "Should start with apify_api_" : null),
   },
   APIFY_GLASSDOOR_ACTOR_ID: {
-    label: "Apify Glassdoor actor ID",
+    label: "Apify Glassdoor reviews actor ID",
     description:
-      "Pick a Glassdoor scraper at apify.com/store?search=glassdoor. Format: username~actor-name.",
-    placeholder: "username~glassdoor-scraper",
+      "Pick a Glassdoor company scraper at apify.com/store?search=glassdoor. Format: username~actor-name.",
+    placeholder: "username~glassdoor-reviews-scraper",
+  },
+  APIFY_GLASSDOOR_JOBS_ACTOR_ID: {
+    label: "Apify Glassdoor jobs actor ID",
+    description:
+      "Pick a Glassdoor job search scraper at apify.com/store?search=glassdoor. Format: username~actor-name.",
+    placeholder: "username~glassdoor-jobs-scraper",
+  },
+  REED_API_KEY: {
+    label: "Reed.co.uk API key",
+    description: "Your Reed.co.uk Developer API key (used for UK job searches).",
+    placeholder: "apikey…",
   },
   DEFAULT_LLM_PROVIDER: {
     label: "Default LLM provider",
