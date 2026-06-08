@@ -220,6 +220,22 @@ export const cvVariants = pgTable("cv_variants", {
   keywords: jsonb("keywords").notNull().default([]),
   provider: providerEnum("provider").notNull(),
   theme: text("theme").notNull().default("modern"),
+  verificationReport: jsonb("verification_report")
+    .$type<{
+      unverifiedSkills: string[];
+      llmCheck?: {
+        passed: boolean;
+        discrepancies: Array<{
+          severity: "warning" | "error";
+          claim: string;
+          fact: string;
+          explanation: string;
+        }>;
+        checkedAt: string;
+      } | null;
+    }>()
+    .notNull()
+    .default({ unverifiedSkills: [] }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -358,6 +374,13 @@ export const coverLetters = pgTable("cover_letters", {
   generatedMd: text("generated_md").notNull(),
   pdfPath: text("pdf_path"),
   theme: text("theme").notNull().default("modern"),
+  selectedHook: text("selected_hook"),
+  selectedEvidence: jsonb("selected_evidence").$type<Array<{
+    type: "experience" | "project";
+    companyOrName: string;
+    text: string;
+  }>>(),
+  ctaTone: text("cta_tone"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

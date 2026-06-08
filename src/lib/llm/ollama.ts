@@ -22,6 +22,8 @@ import {
   SYSTEM_MATCH,
   SYSTEM_REWRITE_CV,
   SYSTEM_REWRITE_SECTION,
+  SYSTEM_VERIFY_CV,
+  SYSTEM_COVER_LETTER_HOOKS,
 } from "./prompts";
 import type {
   CoverLetterInput,
@@ -42,6 +44,9 @@ import type {
   RewriteResult,
   RewriteSectionInput,
   RewriteSectionResult,
+  VerifyCvResult,
+  GenerateHooksInput,
+  GenerateHooksResult,
 } from "./types";
 
 let client: Ollama | null = null;
@@ -122,6 +127,11 @@ export const ollamaProvider: LlmProvider = {
       `## Job\n\nTitle: ${input.job.title}\nCompany: ${input.job.company}\nLocation: ${input.job.location ?? ""}\n\n${input.job.description}`,
       `## Profile\n\n${JSON.stringify(input.profile, null, 2)}`,
       input.templateBodyMd ? `## Template\n\n${input.templateBodyMd}` : "",
+      input.selectedHook ? `## Selected Hook\nUse this EXACT text as the opening hook paragraph:\n${input.selectedHook}` : "",
+      input.selectedEvidence && input.selectedEvidence.length > 0
+        ? `## Selected Evidence\nFocus your evidence paragraph(s) ONLY on these specific points:\n${input.selectedEvidence.map((b) => `- ${b}`).join("\n")}`
+        : "",
+      input.ctaTone ? `## Selected CTA Tone\nAdjust the closing paragraph to match this tone: ${input.ctaTone}` : "",
     ]
       .filter(Boolean)
       .join("\n\n");
@@ -177,6 +187,21 @@ export const ollamaProvider: LlmProvider = {
       .join("\n\n");
     const text = await call(SYSTEM_REWRITE_SECTION, user, 3000);
     return { markdown: stripRewriteFences(text) };
+  },
+
+  async verifyCv(cv: CvJson, tailoredMarkdown: string): Promise<VerifyCvResult> {
+    const user = `## Master CV (JSON)\n\n${JSON.stringify(cv, null, 2)}\n\n## Tailored CV (Markdown)\n\n${tailoredMarkdown}`;
+    const text = await call(SYSTEM_VERIFY_CV, user, 4096);
+    return parseJson<VerifyCvResult>(text);
+  },
+
+  async generateCoverLetterHooks(input: GenerateHooksInput): Promise<GenerateHooksResult> {
+    const user = [
+      `## CV\n\n${JSON.stringify(input.cv, null, 2)}`,
+      `## Job\n\nTitle: ${input.job.title}\nCompany: ${input.job.company}\n\n${input.job.description}`,
+    ].join("\n\n");
+    const text = await call(SYSTEM_COVER_LETTER_HOOKS, user, 2048);
+    return parseJson<GenerateHooksResult>(text);
   },
 };
 

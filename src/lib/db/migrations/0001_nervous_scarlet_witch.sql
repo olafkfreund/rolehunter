@@ -1,0 +1,1 @@
+ALTER TABLE "cv_variants" ADD COLUMN "verification_report" jsonb DEFAULT '{"unverifiedSkills":[]}'::jsonb NOT NULL;

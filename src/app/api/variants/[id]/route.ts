@@ -8,6 +8,8 @@ import {
   updateVariant,
 } from "@/lib/repo/variants";
 import { wrap } from "@/lib/api";
+import { getActiveCv } from "@/lib/repo/cv";
+import { extractTechTokens } from "@/lib/tech-tokens";
 
 export const runtime = "nodejs";
 
@@ -91,10 +93,28 @@ export const PATCH = wrap(async (
   if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+
+  let verificationReport = existing.verificationReport;
+  if (parsed.data.tailoredMarkdown !== undefined) {
+    const activeCv = await getActiveCv();
+    if (activeCv) {
+      const masterTokens = extractTechTokens(activeCv.rawMarkdown);
+      const tailoredTokens = extractTechTokens(parsed.data.tailoredMarkdown);
+      const unverifiedSkills = tailoredTokens.filter(
+        (t) => !masterTokens.some((mt) => mt.toLowerCase() === t.toLowerCase()),
+      );
+      verificationReport = {
+        unverifiedSkills,
+        llmCheck: null, // Clear outdated LLM check
+      };
+    }
+  }
+
   const updated = await updateVariant(parsedId, {
     tailoredMarkdown: parsed.data.tailoredMarkdown,
     keywords: parsed.data.keywords,
     theme: parsed.data.theme,
+    verificationReport,
   });
   return NextResponse.json(updated);
 });

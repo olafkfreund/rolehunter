@@ -12,6 +12,8 @@ import {
   SYSTEM_MATCH,
   SYSTEM_REWRITE_CV,
   SYSTEM_REWRITE_SECTION,
+  SYSTEM_VERIFY_CV,
+  SYSTEM_COVER_LETTER_HOOKS,
 } from "./prompts";
 import type {
   CoverLetterInput,
@@ -32,6 +34,9 @@ import type {
   RewriteResult,
   RewriteSectionInput,
   RewriteSectionResult,
+  VerifyCvResult,
+  GenerateHooksInput,
+  GenerateHooksResult,
 } from "./types";
 
 let client: GoogleGenAI | null = null;
@@ -45,14 +50,25 @@ function getClient(): GoogleGenAI {
 
 async function call(system: string, user: string, maxTokens = 4096): Promise<string> {
   const env = getEnv();
+  const config: any = {
+    systemInstruction: system,
+    responseMimeType: "application/json",
+    // Ensure we have enough output tokens for both reasoning/thinking AND the response.
+    // We add a minimum of 8192 tokens for thinking room.
+    maxOutputTokens: Math.min(maxTokens + 8192, 65535),
+  };
+
+  // Only apply thinkingConfig if using a gemini-2.5 model
+  if (env.GEMINI_MODEL.includes("2.5")) {
+    config.thinkingConfig = {
+      thinkingBudget: 2048,
+    };
+  }
+
   const res = await getClient().models.generateContent({
     model: env.GEMINI_MODEL,
     contents: [{ role: "user", parts: [{ text: user }] }],
-    config: {
-      systemInstruction: system,
-      responseMimeType: "application/json",
-      maxOutputTokens: maxTokens,
-    },
+    config,
   });
   const text = res.text;
   if (!text) throw new Error("No text in Gemini response");
@@ -101,6 +117,11 @@ export const geminiProvider: LlmProvider = {
       `## Job\n\nTitle: ${input.job.title}\nCompany: ${input.job.company}\nLocation: ${input.job.location ?? ""}\n\n${input.job.description}`,
       `## Profile\n\n${JSON.stringify(input.profile, null, 2)}`,
       input.templateBodyMd ? `## Template\n\n${input.templateBodyMd}` : "",
+      input.selectedHook ? `## Selected Hook\nUse this EXACT text as the opening hook paragraph:\n${input.selectedHook}` : "",
+      input.selectedEvidence && input.selectedEvidence.length > 0
+        ? `## Selected Evidence\nFocus your evidence paragraph(s) ONLY on these specific points:\n${input.selectedEvidence.map((b) => `- ${b}`).join("\n")}`
+        : "",
+      input.ctaTone ? `## Selected CTA Tone\nAdjust the closing paragraph to match this tone: ${input.ctaTone}` : "",
     ].filter(Boolean).join("\n\n");
     const text = await call(SYSTEM_COVER_LETTER, user, 3000);
     return parseJson<CoverLetterResult>(text);
@@ -159,6 +180,21 @@ export const geminiProvider: LlmProvider = {
       .join("\n\n");
     const text = await call(SYSTEM_REWRITE_SECTION, user, 3000);
     return { markdown: stripRewriteFences(text) };
+  },
+
+  async verifyCv(cv: CvJson, tailoredMarkdown: string): Promise<VerifyCvResult> {
+    const user = `## Master CV (JSON)\n\n${JSON.stringify(cv, null, 2)}\n\n## Tailored CV (Markdown)\n\n${tailoredMarkdown}`;
+    const text = await call(SYSTEM_VERIFY_CV, user, 4096);
+    return parseJson<VerifyCvResult>(text);
+  },
+
+  async generateCoverLetterHooks(input: GenerateHooksInput): Promise<GenerateHooksResult> {
+    const user = [
+      `## CV\n\n${JSON.stringify(input.cv, null, 2)}`,
+      `## Job\n\nTitle: ${input.job.title}\nCompany: ${input.job.company}\n\n${input.job.description}`,
+    ].join("\n\n");
+    const text = await call(SYSTEM_COVER_LETTER_HOOKS, user, 2048);
+    return parseJson<GenerateHooksResult>(text);
   },
 };
 

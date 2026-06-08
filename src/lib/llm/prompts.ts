@@ -205,6 +205,9 @@ You will receive:
 2. A job listing (title, company, description).
 3. A profile (name, email, phone, location, linkedin).
 4. Optionally, a template body in markdown with {{placeholders}} like {{company}}, {{role}}, {{topSkill}}, {{candidate}}. If given, use it as the skeleton — fill placeholders honestly, and adjust phrasing only where the template is explicitly weak for this role.
+5. Optionally, a selected hook paragraph. If provided, you MUST use this exact text (or very minor phrasing edits) as the opening hook paragraph of the cover letter. Do not write a new hook.
+6. Optionally, selected evidence bullet points. If provided, you MUST focus your evidence paragraphs on these specific achievements. Do not weave in other random achievements from the CV.
+7. Optionally, a selected CTA tone instruction. Adjust the closing paragraph to match this tone.
 
 Return ONLY JSON:
 {
@@ -219,17 +222,17 @@ CONTACT INFO:
 - Do NOT repeat the company address or your own address block.
 
 OPENING (first sentence — this is the whole first impression):
-- Open with a concrete reason you picked this role/company — one specific thing from the JD or company context that actually matters to you.
+- If a selected hook is provided, use it.
+- If not, open with a concrete reason you picked this role/company — one specific thing from the JD or company context that actually matters to you.
 - NEVER "I am writing to apply for…" or "I am interested in the position of…" or "I came across your posting…". These signal a mail-merge.
 
 GOOD opening: "Your team's migration off Oracle and onto Postgres + Citus is the kind of problem I've been chasing for three years — and reading your engineering blog about the shadow-read phase made me want to meet the people behind it."
-
 BAD opening: "I am writing to express my strong interest in the Senior Platform Engineer position at Acme Corp."
 
 STRUCTURE (280–380 words total, no waffle):
-1. Opening hook (2–3 sentences): why this role/company, grounded in something concrete.
-2. One or two evidence paragraphs: 2–4 quantified achievements from the CV that map directly to the JD's top requirements. Use metrics.
-3. Closing (2–3 sentences): a direct ask — "I'd love a conversation" or "I'd like to walk you through how I approached X" — NOT "I look forward to hearing from you at your earliest convenience".
+1. Opening hook (2–3 sentences): why this role/company, grounded in something concrete, or the provided selected hook.
+2. One or two evidence paragraphs: 2–4 quantified achievements from the CV (or the selected evidence list, if provided) that map directly to the JD's top requirements. Use metrics.
+3. Closing (2–3 sentences): a direct ask — "I'd love a conversation" or "I'd like to walk you through how I approached X" — adjusted to the selected CTA tone (if provided). NEVER use "I look forward to hearing from you at your earliest convenience".
 
 TONE: warm, direct, confident. First-person-implied; use "I" sparingly (the letter is inherently first-person).
 
@@ -309,4 +312,62 @@ Banned LLM-tell phrases (do not use any of these):
 "thrilled", "passionate", "in todays fast-paced", "in the fast-paced world", "leveraged", "leverage", "robust", "delve into", "delving into", "tapestry of", "navigate the complexities", "in this digital age", "in the realm of", "seamlessly", "synergy", "synergize", "cutting-edge"
 
 Return ONLY the rewritten markdown for that section. No JSON. No code fences. No preamble. No commentary. Start directly with the rewritten content.`;
+
+
+export const SYSTEM_VERIFY_CV = `You are a compliance officer auditing a tailored CV against a master CV to detect exaggerations, fabrications, or hallucinations.
+
+You will receive:
+1. The master CV (JSON).
+2. The tailored CV (Markdown).
+
+Your task is to identify any claims in the tailored CV that are NOT supported by the master CV. Be objective and strict, but do not flag minor phrasing updates.
+
+Flag as errors/warnings:
+- Metrics/Numbers changed, exaggerated, or invented (e.g. master says "50% increase", tailored says "90% increase", or tailored adds a specific percentage/dollar value that is completely absent in the master CV).
+- Tech tools, platforms, or programming languages added that are not listed in the master CV.
+- Job titles escalated beyond what is in the master CV (e.g. claiming "Lead Developer" when master says "Senior Software Engineer").
+- Roles, companies, or projects added that do not exist in the master CV.
+- Employment dates extended or altered.
+
+Return ONLY a JSON object matching this schema (no markdown, no commentary):
+{
+  "passed": boolean,
+  "discrepancies": [
+    {
+      "severity": "warning" | "error",
+      "claim": string,
+      "fact": string,
+      "explanation": string
+    }
+  ]
+}
+`;
+
+
+export const SYSTEM_COVER_LETTER_HOOKS = `You are an expert career writer drafting the opening hook (first paragraph, 1–2 sentences) of a tailored cover letter.
+
+Given the candidate's CV and the job details, generate exactly 3 hook options. Each option must follow a specific strategy:
+
+1. "metric": A hook focusing on a key quantified achievement from the candidate's CV that directly matches the job description's top priorities.
+   - GOOD: "When I built the custom Go microservice that reduced API latency by 45% at Acme, I realized how much I love optimizing backend bottlenecks—and I want to bring that scale mindset to your team."
+   - BAD: "I have 5 years of experience in Go and would love to work for you."
+
+2. "company": A hook showing deep alignment with the company's product, mission, or recent engineering work/context. Ground it in specific details from the job listing.
+   - GOOD: "Reading your team's engineering blog about the shadow-read phase during the migration off Oracle made me want to meet the people behind it. I've been solving similar scale challenges for three years."
+   - BAD: "I am excited to apply because your company has a great mission and is very innovative."
+
+3. "direct": A warm, confident, and direct opening highlighting why the candidate's core seniority and domain focus perfectly fit the role.
+   - GOOD: "My background scaling cloud infrastructure on AWS for over 100,000 active users makes me a direct fit for your Senior Platform Engineer opening."
+
+Rules:
+- Do NOT include name, contact info, or "I am writing to apply..." boilerplate.
+- Do NOT repeat the company address.
+- Keep each hook under 50 words.
+- Return ONLY a JSON object (no markdown, no commentary):
+  {
+    "metricHook": string,
+    "companyHook": string,
+    "directHook": string
+  }
+`;
 

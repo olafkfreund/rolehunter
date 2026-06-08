@@ -5,6 +5,7 @@ import type { CvJson, JobInput, Provider } from "@/lib/llm/types";
 import { getActiveCv } from "@/lib/repo/cv";
 import { getJob } from "@/lib/repo/jobs";
 import { insertVariant, listVariantsForJob } from "@/lib/repo/variants";
+import { extractTechTokens } from "@/lib/tech-tokens";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -64,12 +65,21 @@ export async function POST(req: Request) {
     ? result.keywords.filter((k): k is string => typeof k === "string")
     : [];
 
+  const masterTokens = extractTechTokens(cv.rawMarkdown);
+  const tailoredTokens = extractTechTokens(result.markdown);
+  const unverifiedSkills = tailoredTokens.filter(
+    (t) => !masterTokens.some((mt) => mt.toLowerCase() === t.toLowerCase()),
+  );
+
   const variant = await insertVariant({
     jobId,
     matchId: matchId ?? null,
     tailoredMarkdown: result.markdown,
     keywords,
     provider: llm.name,
+    verificationReport: {
+      unverifiedSkills,
+    },
   });
   return NextResponse.json(variant);
 }

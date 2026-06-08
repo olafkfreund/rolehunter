@@ -45,4 +45,31 @@ describe("tech-tokens.extractTechTokens", () => {
     expect(TECH_TOKENS).toContain("TypeScript");
     expect(TECH_TOKENS).toContain("AWS");
   });
+
+  describe("unverified skills check", () => {
+    it("identifies tailored skills absent from master CV", () => {
+      const master = "I write TypeScript and React.";
+      const tailored = "I write TypeScript, React, and Kubernetes, deploying to AWS.";
+      const masterTokens = extractTechTokens(master);
+      const tailoredTokens = extractTechTokens(tailored);
+      const unverified = tailoredTokens.filter(
+        (t) => !masterTokens.some((mt) => mt.toLowerCase() === t.toLowerCase()),
+      );
+      expect(unverified).toContain("Kubernetes");
+      expect(unverified).toContain("AWS");
+      expect(unverified).not.toContain("TypeScript");
+      expect(unverified).not.toContain("React");
+    });
+
+    it("returns empty array when all tailored skills are in master CV", () => {
+      const master = "Expertise in AWS, Terraform, and Python.";
+      const tailored = "We used Python and Terraform on AWS.";
+      const masterTokens = extractTechTokens(master);
+      const tailoredTokens = extractTechTokens(tailored);
+      const unverified = tailoredTokens.filter(
+        (t) => !masterTokens.some((mt) => mt.toLowerCase() === t.toLowerCase()),
+      );
+      expect(unverified).toEqual([]);
+    });
+  });
 });

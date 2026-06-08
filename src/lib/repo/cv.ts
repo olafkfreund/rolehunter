@@ -5,6 +5,8 @@ import type { CvMaster } from "../db/schema";
 import type { CvJson, Provider } from "../llm/types";
 import { parseCvText } from "../cv/parse";
 import { absoluteUploadPath } from "../upload";
+import { cleanNullBytes } from "../utils/clean";
+
 
 export async function listCvs(): Promise<
   Array<CvMaster & { experienceCount: number; skillsCount: number }>
@@ -76,6 +78,9 @@ export async function saveCvMaster(params: {
   sourceFilePath?: string;
 }): Promise<CvMaster> {
   const db = getDb();
+  const title = cleanNullBytes(params.title);
+  const rawMarkdown = cleanNullBytes(params.rawMarkdown);
+  const parsedJson = cleanNullBytes(params.parsedJson);
   return await db.transaction(async (tx) => {
     await tx
       .update(schema.cvMaster)
@@ -84,9 +89,9 @@ export async function saveCvMaster(params: {
     const rows = await tx
       .insert(schema.cvMaster)
       .values({
-        title: params.title,
-        rawMarkdown: params.rawMarkdown,
-        parsedJson: params.parsedJson as unknown as Record<string, unknown>,
+        title,
+        rawMarkdown,
+        parsedJson: parsedJson as unknown as Record<string, unknown>,
         sourceFilePath: params.sourceFilePath,
         isActive: true,
       })
@@ -101,10 +106,10 @@ export async function updateCv(
 ): Promise<CvMaster> {
   const db = getDb();
   const sets: Record<string, unknown> = {};
-  if (patch.title !== undefined) sets.title = patch.title;
-  if (patch.rawMarkdown !== undefined) sets.rawMarkdown = patch.rawMarkdown;
+  if (patch.title !== undefined) sets.title = cleanNullBytes(patch.title);
+  if (patch.rawMarkdown !== undefined) sets.rawMarkdown = cleanNullBytes(patch.rawMarkdown);
   if (patch.parsedJson !== undefined) {
-    sets.parsedJson = patch.parsedJson as unknown as Record<string, unknown>;
+    sets.parsedJson = cleanNullBytes(patch.parsedJson) as unknown as Record<string, unknown>;
   }
   if (Object.keys(sets).length === 0) {
     const existing = await getCv(id);

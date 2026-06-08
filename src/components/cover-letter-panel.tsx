@@ -5,8 +5,9 @@ import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import type { CoverLetter, CoverLetterTemplate } from "@/lib/db/schema";
-import type { Provider } from "@/lib/llm/types";
+import type { Provider, GenerateHooksResult } from "@/lib/llm/types";
 import { ProviderToggle } from "./provider-toggle";
 
 type Theme = "modern" | "classic";
@@ -97,6 +98,18 @@ export function CoverLetterPanel({ jobId }: { jobId: number }) {
   const [theme, setTheme] = useState<Theme>("modern");
   const [themeBusy, setThemeBusy] = useState(false);
 
+  // Modular Builder Options States
+  const [customizing, setCustomizing] = useState(false);
+  const [masterCv, setMasterCv] = useState<any | null>(null);
+  const [selectedHookOption, setSelectedHookOption] = useState<string | null>(null);
+  const [customHookText, setCustomHookText] = useState("");
+  const [generatedHooks, setGeneratedHooks] = useState<GenerateHooksResult | null>(null);
+  const [loadingHooks, setLoadingHooks] = useState(false);
+  const [selectedEvidence, setSelectedEvidence] = useState<
+    Array<{ type: "experience" | "project"; companyOrName: string; text: string }>
+  >([]);
+  const [ctaTone, setCtaTone] = useState("Direct & Confident");
+
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -116,17 +129,22 @@ export function CoverLetterPanel({ jobId }: { jobId: number }) {
         }
         setApplicationId(app.id);
 
-        const [tRes, lRes] = await Promise.all([
+        const [tRes, lRes, cvRes] = await Promise.all([
           fetch("/api/cover-letter-templates", { cache: "no-store" }),
           fetch(`/api/cover-letters?appId=${app.id}`, { cache: "no-store" }),
+          fetch("/api/cv", { cache: "no-store" }),
         ]);
-        const [tBody, lBody] = await Promise.all([
+        const [tBody, lBody, cvJson] = await Promise.all([
           parseJsonSafe(tRes),
           parseJsonSafe(lRes),
+          cvRes.json().catch(() => null),
         ]);
         if (cancelled) return;
         if (tRes.ok && Array.isArray(tBody)) {
           setTemplates(tBody as CoverLetterTemplate[]);
+        }
+        if (cvRes.ok && cvJson) {
+          setMasterCv(cvJson);
         }
         if (lRes.ok && Array.isArray(lBody)) {
           const letters = lBody as CoverLetter[];
@@ -137,6 +155,18 @@ export function CoverLetterPanel({ jobId }: { jobId: number }) {
               setSelectedTemplateId(letters[0].templateId);
             }
             if (isTheme(letters[0].theme)) setTheme(letters[0].theme);
+
+            // Populate modular configs from database
+            if (letters[0].selectedHook) {
+              setCustomHookText(letters[0].selectedHook);
+              setSelectedHookOption("custom");
+            }
+            if (letters[0].selectedEvidence) {
+              setSelectedEvidence(letters[0].selectedEvidence as any[]);
+            }
+            if (letters[0].ctaTone) {
+              setCtaTone(letters[0].ctaTone);
+            }
           }
         }
       } catch (e) {
@@ -153,6 +183,28 @@ export function CoverLetterPanel({ jobId }: { jobId: number }) {
     };
   }, [jobId]);
 
+  async function onGenerateHooks() {
+    if (applicationId === null) return;
+    setLoadingHooks(true);
+    try {
+      const res = await fetch("/api/cover-letters/generate-hooks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId, provider }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to generate hooks");
+      setGeneratedHooks(data as GenerateHooksResult);
+      setSelectedHookOption("metric");
+      setCustomHookText((data as GenerateHooksResult).metricHook);
+      toast.success("Hooks generated");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to generate hooks");
+    } finally {
+      setLoadingHooks(false);
+    }
+  }
+
   async function onGenerate() {
     if (applicationId === null) return;
     setBusy(true);
@@ -165,6 +217,9 @@ export function CoverLetterPanel({ jobId }: { jobId: number }) {
           applicationId,
           templateId: selectedTemplateId,
           provider,
+          selectedHook: selectedHookOption ? customHookText : null,
+          selectedEvidence: selectedEvidence.length > 0 ? selectedEvidence : null,
+          ctaTone,
         }),
       });
       const body = await parseJsonSafe(res);
@@ -292,6 +347,18 @@ export function CoverLetterPanel({ jobId }: { jobId: number }) {
               </option>
             ))}
           </select>
+          <button
+            type="button"
+            onClick={() => setCustomizing(!customizing)}
+            className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm hover:bg-[var(--muted)] flex items-center gap-1.5 cursor-pointer"
+          >
+            Customize
+            {customizing ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </button>
           <ProviderToggle
             value={provider}
             onChange={setProvider}
@@ -301,7 +368,7 @@ export function CoverLetterPanel({ jobId }: { jobId: number }) {
             type="button"
             onClick={onGenerate}
             disabled={busy}
-            className="rounded-md bg-[var(--foreground)] px-4 py-1.5 text-sm font-medium text-[var(--background)] disabled:opacity-50"
+            className="rounded-md bg-[var(--foreground)] px-4 py-1.5 text-sm font-medium text-[var(--background)] disabled:opacity-50 cursor-pointer"
           >
             {busy
               ? "Generating…"
@@ -311,6 +378,196 @@ export function CoverLetterPanel({ jobId }: { jobId: number }) {
           </button>
         </div>
       </div>
+
+      {customizing && (
+        <div className="border border-[var(--border)] rounded-lg bg-[var(--muted)]/10 p-4 space-y-4">
+          <div className="border-b border-[var(--border)] pb-2">
+            <h3 className="text-sm font-semibold">Modular Cover Letter Customizer</h3>
+            <p className="text-xs text-[var(--muted-foreground)]">Fine-tune your hooks, evidence paragraphs, and closing call-to-actions.</p>
+          </div>
+
+          {/* 1. Hook Selection */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold block uppercase tracking-wider text-[var(--muted-foreground)]">1. Choose or Generate opening hook</label>
+            {!generatedHooks ? (
+              <button
+                type="button"
+                onClick={onGenerateHooks}
+                disabled={loadingHooks || busy}
+                className="rounded-md border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-xs hover:bg-[var(--muted)] disabled:opacity-50 cursor-pointer"
+              >
+                {loadingHooks ? "Generating Hook Options..." : "AI Generate Hook Options"}
+              </button>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {[
+                  { id: "metric", label: "Metric-First", val: generatedHooks.metricHook },
+                  { id: "company", label: "Company-Centric", val: generatedHooks.companyHook },
+                  { id: "direct", label: "Direct & Confident", val: generatedHooks.directHook },
+                ].map((hookOpt) => (
+                  <div
+                    key={hookOpt.id}
+                    onClick={() => {
+                      setSelectedHookOption(hookOpt.id);
+                      setCustomHookText(hookOpt.val);
+                    }}
+                    className={`border rounded-lg p-3 text-xs cursor-pointer hover:border-[var(--foreground)] transition-all ${
+                      selectedHookOption === hookOpt.id
+                        ? "border-[var(--foreground)] bg-[var(--muted)]"
+                        : "border-[var(--border)] bg-[var(--background)]"
+                    }`}
+                  >
+                    <div className="font-semibold mb-1">{hookOpt.label}</div>
+                    <p className="text-[var(--muted-foreground)]">{hookOpt.val}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Hook text editor */}
+            {selectedHookOption && (
+              <div className="space-y-1">
+                <div className="text-[11px] text-[var(--muted-foreground)]">Edit Selected Hook:</div>
+                <textarea
+                  value={customHookText}
+                  onChange={(e) => {
+                    setSelectedHookOption("custom");
+                    setCustomHookText(e.target.value);
+                  }}
+                  rows={2}
+                  className="w-full text-xs p-2 rounded-md border border-[var(--border)] bg-[var(--background)] outline-none text-[var(--foreground)]"
+                  placeholder="Paste or write your own custom hook here..."
+                />
+              </div>
+            )}
+          </div>
+
+          {/* 2. Evidence (CV Bullets) Selection */}
+          <div className="space-y-2 pt-2 border-t border-[var(--border)]/50">
+            <label className="text-xs font-semibold block uppercase tracking-wider text-[var(--muted-foreground)]">
+              2. Select CV Evidence to Highlight (Max 3)
+            </label>
+            {!masterCv ? (
+              <p className="text-xs text-[var(--muted-foreground)]">No active CV loaded. Set one in Profile.</p>
+            ) : (
+              <div className="max-h-60 overflow-y-auto space-y-2 border border-[var(--border)] rounded bg-[var(--background)] p-3">
+                {/* Master CV Experience */}
+                {masterCv.parsedJson?.experience?.map((exp: any, expIdx: number) => (
+                  <div key={`exp-${expIdx}`} className="space-y-1">
+                    <div className="text-[10px] uppercase font-bold text-[var(--muted-foreground)] tracking-wide">
+                      {exp.company} — {exp.title}
+                    </div>
+                    {exp.bullets?.map((bullet: string, bulIdx: number) => {
+                      const isChecked = selectedEvidence.some(
+                        (item) => item.type === "experience" && item.text === bullet
+                      );
+                      return (
+                        <label
+                          key={`bullet-${expIdx}-${bulIdx}`}
+                          className="flex items-start gap-2 text-xs p-1.5 rounded hover:bg-[var(--muted)]/40 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                setSelectedEvidence(
+                                  selectedEvidence.filter(
+                                    (item) => !(item.type === "experience" && item.text === bullet)
+                                  )
+                                );
+                              } else {
+                                if (selectedEvidence.length >= 3) {
+                                  toast.error("Select up to 3 evidence items maximum");
+                                  return;
+                                }
+                                setSelectedEvidence([
+                                  ...selectedEvidence,
+                                  { type: "experience", companyOrName: exp.company, text: bullet },
+                                ]);
+                              }
+                            }}
+                            className="mt-0.5"
+                          />
+                          <span className="text-[var(--foreground)]">{bullet}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ))}
+
+                {/* Master CV Projects */}
+                {masterCv.parsedJson?.projects && masterCv.parsedJson.projects.length > 0 && (
+                  <div className="space-y-1 pt-2 border-t border-[var(--border)]/30">
+                    <div className="text-[10px] uppercase font-bold text-[var(--muted-foreground)] tracking-wide">
+                      Projects
+                    </div>
+                    {masterCv.parsedJson.projects.map((proj: any, projIdx: number) => {
+                      const textVal = `${proj.name}: ${proj.description}`;
+                      const isChecked = selectedEvidence.some(
+                        (item) => item.type === "project" && item.text === textVal
+                      );
+                      return (
+                        <label
+                          key={`proj-${projIdx}`}
+                          className="flex items-start gap-2 text-xs p-1.5 rounded hover:bg-[var(--muted)]/40 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                setSelectedEvidence(
+                                  selectedEvidence.filter(
+                                    (item) => !(item.type === "project" && item.text === textVal)
+                                  )
+                                );
+                              } else {
+                                if (selectedEvidence.length >= 3) {
+                                  toast.error("Select up to 3 evidence items maximum");
+                                  return;
+                                }
+                                setSelectedEvidence([
+                                  ...selectedEvidence,
+                                  { type: "project", companyOrName: proj.name, text: textVal },
+                                ]);
+                              }
+                            }}
+                            className="mt-0.5"
+                          />
+                          <span className="text-[var(--foreground)] font-semibold">{proj.name}:</span>
+                          <span className="text-[var(--muted-foreground)]">{proj.description}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 3. CTA Tone */}
+          <div className="space-y-2 pt-2 border-t border-[var(--border)]/50">
+            <label className="text-xs font-semibold block uppercase tracking-wider text-[var(--muted-foreground)]">3. Closing Call-To-Action Tone</label>
+            <div className="flex gap-2">
+              {["Direct & Confident", "Conversational", "Traditional"].map((tone) => (
+                <button
+                  key={tone}
+                  type="button"
+                  onClick={() => setCtaTone(tone)}
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium border transition-colors cursor-pointer ${
+                    ctaTone === tone
+                      ? "bg-[var(--foreground)] text-[var(--background)] border-[var(--foreground)]"
+                      : "bg-[var(--background)] text-[var(--muted-foreground)] border-[var(--border)] hover:text-[var(--foreground)]"
+                  }`}
+                >
+                  {tone}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {err && <div className="text-sm text-[var(--danger)]">{err}</div>}
 

@@ -71,6 +71,20 @@ export interface CoverLetterInput {
     linkedinUrl?: string | null;
   };
   templateBodyMd?: string;
+  selectedHook?: string | null;
+  selectedEvidence?: string[] | null;
+  ctaTone?: string | null;
+}
+
+export interface GenerateHooksInput {
+  cv: CvJson;
+  job: JobInput;
+}
+
+export interface GenerateHooksResult {
+  metricHook: string;
+  companyHook: string;
+  directHook: string;
 }
 
 export interface CoverLetterResult {
@@ -164,6 +178,18 @@ export interface RewriteSectionResult {
   markdown: string;
 }
 
+export interface VerifyCvDiscrepancy {
+  severity: "warning" | "error";
+  claim: string;
+  fact: string;
+  explanation: string;
+}
+
+export interface VerifyCvResult {
+  passed: boolean;
+  discrepancies: VerifyCvDiscrepancy[];
+}
+
 export interface LlmProvider {
   name: Provider;
   extractCv(rawText: string): Promise<CvJson>;
@@ -177,4 +203,6 @@ export interface LlmProvider {
   canonicalizeGaps(input: GapClusterMember[]): Promise<GapCanonicalizeResult>;
   generateLearningResources(skill: string): Promise<LearningResourcesResult>;
   rewriteSection(input: RewriteSectionInput): Promise<RewriteSectionResult>;
+  verifyCv(cv: CvJson, tailoredMarkdown: string): Promise<VerifyCvResult>;
+  generateCoverLetterHooks(input: GenerateHooksInput): Promise<GenerateHooksResult>;
 }

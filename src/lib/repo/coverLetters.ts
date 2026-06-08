@@ -6,7 +6,7 @@ import type {
   CoverLetterTemplate,
   JobListing,
 } from "@/lib/db/schema";
-import type { CoverLetterInput, CvJson, Provider } from "@/lib/llm/types";
+import type { CoverLetterInput, CvJson, Provider, GenerateHooksResult } from "@/lib/llm/types";
 import { getProvider } from "@/lib/llm";
 import { getActiveCv } from "@/lib/repo/cv";
 import { getProfile } from "@/lib/repo/profile";
@@ -155,6 +155,9 @@ export async function createCoverLetter(params: {
   templateId?: number | null;
   provider: Provider;
   generatedMd: string;
+  selectedHook?: string | null;
+  selectedEvidence?: CoverLetter["selectedEvidence"] | null;
+  ctaTone?: string | null;
 }): Promise<CoverLetter> {
   const db = getDb();
   const rows = await db
@@ -164,6 +167,9 @@ export async function createCoverLetter(params: {
       templateId: params.templateId ?? null,
       provider: params.provider,
       generatedMd: params.generatedMd,
+      selectedHook: params.selectedHook ?? null,
+      selectedEvidence: params.selectedEvidence ?? null,
+      ctaTone: params.ctaTone ?? null,
     })
     .returning();
   return rows[0];
@@ -262,7 +268,13 @@ async function loadApplicationWithJob(
 
 export async function generateForApplication(
   appId: number,
-  opts: { templateId?: number | null; provider: Provider },
+  opts: {
+    templateId?: number | null;
+    provider: Provider;
+    selectedHook?: string | null;
+    selectedEvidence?: CoverLetter["selectedEvidence"] | null;
+    ctaTone?: string | null;
+  },
 ): Promise<CoverLetter> {
   const ctx = await loadApplicationWithJob(appId);
   const [cv, profile] = await Promise.all([getActiveCv(), getProfile()]);
@@ -294,6 +306,9 @@ export async function generateForApplication(
       linkedinUrl: profile.linkedinUrl,
     },
     templateBodyMd: template?.bodyMd,
+    selectedHook: opts.selectedHook,
+    selectedEvidence: opts.selectedEvidence?.map((e) => e.text) ?? null,
+    ctaTone: opts.ctaTone,
   };
 
   const llm = getProvider(opts.provider);
@@ -304,5 +319,29 @@ export async function generateForApplication(
     templateId: template?.id ?? null,
     provider: llm.name,
     generatedMd: result.markdown,
+    selectedHook: opts.selectedHook,
+    selectedEvidence: opts.selectedEvidence,
+    ctaTone: opts.ctaTone,
+  });
+}
+
+export async function generateHooksForApplication(
+  appId: number,
+  opts: { provider: Provider },
+): Promise<GenerateHooksResult> {
+  const ctx = await loadApplicationWithJob(appId);
+  const cv = await getActiveCv();
+  if (!cv) {
+    throw new Error("No active CV. Set one on /profile.");
+  }
+  const llm = getProvider(opts.provider);
+  return llm.generateCoverLetterHooks({
+    cv: cv.parsedJson as CvJson,
+    job: {
+      title: ctx.job.title,
+      company: ctx.job.company,
+      location: ctx.job.location || undefined,
+      description: ctx.job.description,
+    },
   });
 }

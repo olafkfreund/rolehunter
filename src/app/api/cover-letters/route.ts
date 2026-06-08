@@ -16,6 +16,13 @@ const postSchema = z.object({
   applicationId: z.number().int().positive(),
   templateId: z.number().int().positive().nullable().optional(),
   provider: providerEnum,
+  selectedHook: z.string().nullable().optional(),
+  selectedEvidence: z.array(z.object({
+    type: z.enum(["experience", "project"]),
+    companyOrName: z.string(),
+    text: z.string(),
+  })).nullable().optional(),
+  ctaTone: z.string().nullable().optional(),
 });
 
 export const GET = wrap(async (req: Request) => {
@@ -50,10 +57,13 @@ export const POST = wrap(async (req: Request) => {
       { status: 400 },
     );
   }
-  const { applicationId, templateId, provider } = parsed.data;
+  const { applicationId, templateId, provider, selectedHook, selectedEvidence, ctaTone } = parsed.data;
   const letter = await generateForApplication(applicationId, {
     templateId: templateId ?? null,
     provider,
+    selectedHook,
+    selectedEvidence,
+    ctaTone,
   });
   return NextResponse.json(letter, { status: 201 });
 });
