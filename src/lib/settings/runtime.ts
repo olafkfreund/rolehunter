@@ -7,11 +7,20 @@
 
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { invalidateEnvCache } from "@/lib/env";
 
-// Slice 4: only these keys are runtime-editable. Adding more is one line.
 export const EDITABLE_KEYS = [
   "ANTHROPIC_API_KEY",
+  "CLAUDE_MODEL",
   "GEMINI_API_KEY",
+  "GEMINI_MODEL",
+  "OPENAI_API_KEY",
+  "OPENAI_MODEL",
+  "OLLAMA_BASE_URL",
+  "OLLAMA_MODEL",
+  "JSEARCH_RAPIDAPI_KEY",
+  "ADZUNA_APP_ID",
+  "ADZUNA_APP_KEY",
   "APIFY_API_TOKEN",
   "APIFY_GLASSDOOR_ACTOR_ID",
   "DEFAULT_LLM_PROVIDER",
@@ -21,6 +30,9 @@ export type EditableKey = (typeof EDITABLE_KEYS)[number];
 export const SECRET_KEYS = new Set<EditableKey>([
   "ANTHROPIC_API_KEY",
   "GEMINI_API_KEY",
+  "OPENAI_API_KEY",
+  "JSEARCH_RAPIDAPI_KEY",
+  "ADZUNA_APP_KEY",
   "APIFY_API_TOKEN",
 ]);
 
@@ -38,10 +50,56 @@ export const KEY_META: Record<EditableKey, KeyMeta> = {
     placeholder: "sk-ant-api03-…",
     validate: (v) => (v && !v.startsWith("sk-ant-") ? "Should start with sk-ant-" : null),
   },
+  CLAUDE_MODEL: {
+    label: "Claude model",
+    description: "The model ID to use for Anthropic Claude (e.g. claude-sonnet-4-6).",
+    placeholder: "claude-sonnet-4-6",
+  },
   GEMINI_API_KEY: {
     label: "Google Gemini API key",
     description: "Get one at aistudio.google.com/apikey. Used for Gemini provider.",
     placeholder: "AIza…",
+  },
+  GEMINI_MODEL: {
+    label: "Gemini model",
+    description: "The model ID to use for Google Gemini (e.g. gemini-2.5-pro).",
+    placeholder: "gemini-2.5-pro",
+  },
+  OPENAI_API_KEY: {
+    label: "OpenAI API key",
+    description: "Get one at platform.openai.com/api-keys. Used for OpenAI GPT provider.",
+    placeholder: "sk-proj-…",
+    validate: (v) => (v && !v.startsWith("sk-") ? "Should start with sk-" : null),
+  },
+  OPENAI_MODEL: {
+    label: "OpenAI model",
+    description: "The model ID to use for OpenAI GPT (e.g. gpt-4o-mini).",
+    placeholder: "gpt-4o-mini",
+  },
+  OLLAMA_BASE_URL: {
+    label: "Ollama base URL",
+    description: "HTTP endpoint where your local Ollama instance runs.",
+    placeholder: "http://localhost:11434",
+  },
+  OLLAMA_MODEL: {
+    label: "Ollama model",
+    description: "The local model name downloaded in your Ollama (e.g. llama3.1:8b).",
+    placeholder: "llama3.1:8b",
+  },
+  JSEARCH_RAPIDAPI_KEY: {
+    label: "JSearch RapidAPI key",
+    description: "Your RapidAPI key for the JSearch API (used to fetch job listings).",
+    placeholder: "3d79a7…",
+  },
+  ADZUNA_APP_ID: {
+    label: "Adzuna App ID",
+    description: "App ID from developer.adzuna.com for job searching.",
+    placeholder: "3cf4665d",
+  },
+  ADZUNA_APP_KEY: {
+    label: "Adzuna App Key",
+    description: "App Key from developer.adzuna.com for job searching.",
+    placeholder: "2235d78…",
   },
   APIFY_API_TOKEN: {
     label: "Apify API token",
@@ -175,6 +233,7 @@ export async function setRuntimeSetting(key: EditableKey, value: string): Promis
   if (value === "") {
     // Empty string means "delete the DB row" — the env (if any) takes over again.
     await db.delete(schema.appSettings).where(eq(schema.appSettings.key, key));
+    delete process.env[key];
   } else {
     await db
       .insert(schema.appSettings)
@@ -188,9 +247,11 @@ export async function setRuntimeSetting(key: EditableKey, value: string): Promis
         target: schema.appSettings.key,
         set: { value, isSecret, updatedAt: new Date() },
       });
+    process.env[key] = value;
   }
-  // Force the cache to refresh on next read.
+  // Force the caches to refresh on next read.
   invalidateRuntimeSettings();
+  invalidateEnvCache();
 }
 
 /**
@@ -199,12 +260,11 @@ export async function setRuntimeSetting(key: EditableKey, value: string): Promis
  * either in DB or in env.
  */
 export async function isConfigured(): Promise<boolean> {
-  for (const key of ["ANTHROPIC_API_KEY", "GEMINI_API_KEY"] as const) {
+  for (const key of ["ANTHROPIC_API_KEY", "GEMINI_API_KEY", "OPENAI_API_KEY"] as const) {
     const v = await getRuntimeSetting(key);
     if (v && v.length > 0) return true;
   }
-  // Also accept OpenAI / Ollama (env-only for now)
-  if (process.env.OPENAI_API_KEY) return true;
-  if (process.env.OLLAMA_BASE_URL) return true;
+  const ollamaUrl = await getRuntimeSetting("OLLAMA_BASE_URL");
+  if (ollamaUrl && ollamaUrl.length > 0) return true;
   return false;
 }

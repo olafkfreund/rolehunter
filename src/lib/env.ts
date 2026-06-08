@@ -61,6 +61,10 @@ export function getEnv(): Env {
   return cached;
 }
 
+export function invalidateEnvCache(): void {
+  cached = null;
+}
+
 export function hasProvider(p: "claude" | "gemini" | "openai" | "ollama"): boolean {
   const env = getEnv();
   switch (p) {
