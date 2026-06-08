@@ -19,14 +19,7 @@ interface Props {
   pad?: number;
 }
 
-function bboxAround(lat: number, lng: number, pad: number): string {
-  // OSM bbox format: minLng,minLat,maxLng,maxLat
-  const minLng = lng - pad;
-  const minLat = lat - pad;
-  const maxLng = lng + pad;
-  const maxLat = lat + pad;
-  return `${minLng}%2C${minLat}%2C${maxLng}%2C${maxLat}`;
-}
+
 
 export function OfficeMap({
   lat,
@@ -38,22 +31,78 @@ export function OfficeMap({
   pad,
 }: Props) {
   // Auto-pick padding from the distance between the two points so both fit.
-  let resolvedPad = pad ?? 0.05;
-  if (homeLat != null && homeLng != null) {
-    const dLat = Math.abs(homeLat - lat);
-    const dLng = Math.abs(homeLng - lng);
-    resolvedPad = Math.max(resolvedPad, Math.max(dLat, dLng) * 0.7 + 0.02);
-  }
+  const srcDoc = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    html, body, #map {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #111;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const DefaultIcon = L.icon({
+      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+    });
+    L.Marker.prototype.options.icon = DefaultIcon;
 
-  const bbox = bboxAround(lat, lng, resolvedPad);
-  const marker = `${lat}%2C${lng}`;
-  const src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${marker}`;
+    const lat = ${lat};
+    const lng = ${lng};
+    const homeLat = ${homeLat ?? "null"};
+    const homeLng = ${homeLng ?? "null"};
+    const label = ${JSON.stringify(label ?? "Office")};
+
+    const map = L.map('map', {
+      zoomControl: true,
+      attributionControl: false
+    });
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19
+    }).addTo(map);
+
+    const officeMarker = L.marker([lat, lng]).addTo(map);
+    officeMarker.bindPopup("<b>" + label + "</b>").openPopup();
+
+    const points = [[lat, lng]];
+
+    if (homeLat !== null && homeLng !== null) {
+      const homeMarker = L.marker([homeLat, homeLng]).addTo(map);
+      homeMarker.bindPopup("<b>Your Home</b>");
+      points.push([homeLat, homeLng]);
+    }
+
+    if (points.length > 1) {
+      map.fitBounds(points, { padding: [45, 45] });
+    } else {
+      map.setView([lat, lng], 13);
+    }
+  </script>
+</body>
+</html>`;
+
   const directLink = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=12/${lat}/${lng}`;
 
   return (
     <div className="rounded-md overflow-hidden border border-[var(--border)] bg-[var(--bg-elev)]">
       <iframe
-        src={src}
+        srcDoc={srcDoc}
         loading="lazy"
         title={label ? `Map of ${label}` : "Office map"}
         className="w-full block border-0"
