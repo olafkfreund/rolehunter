@@ -102,6 +102,9 @@ function extractJsonLdJobs(html: string): JsonLdJobPosting | null {
 
 function stripHtml(s: string): string {
   return s
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, "")
     .replace(/<\s*br\s*\/?>/gi, "\n")
     .replace(/<\/(p|div|li|h[1-6])\s*>/gi, "\n\n")
     .replace(/<[^>]+>/g, "")
@@ -172,6 +175,9 @@ function fromJsonLd(j: JsonLdJobPosting, url: string): ImportedJob {
 function fromMetaAndHeuristics(html: string, url: string): ImportedJob {
   const root = parse(html);
 
+  // Prune non-content and noise elements from the DOM
+  root.querySelectorAll("script, style, noscript, iframe, svg, form, nav, footer, header").forEach((el) => el.remove());
+
   const title =
     root.querySelector('meta[property="og:title"]')?.getAttribute("content") ||
     root.querySelector('meta[name="twitter:title"]')?.getAttribute("content") ||
@@ -196,8 +202,10 @@ function fromMetaAndHeuristics(html: string, url: string): ImportedJob {
     root.querySelector('[class*="job-description" i]') ||
     root.querySelector('[class*="description" i]') ||
     root.querySelector("body");
-  const body = article?.text || "";
-  const fullDesc = [description, body.replace(/\s+/g, " ").trim()]
+
+  const innerHtml = article?.innerHTML || "";
+  const body = stripHtml(innerHtml);
+  const fullDesc = [description, body]
     .filter((s) => s && s.trim().length > 0)
     .join("\n\n")
     .slice(0, 30_000);
