@@ -309,8 +309,8 @@ function modernCss(): string {
     .contact { font-size: 10pt; color: #555; }
     .avatar {
       position: absolute;
-      top: 0.6in;
-      right: 0.6in;
+      top: 0;
+      right: 0;
       width: 96px;
       height: 96px;
       border-radius: 12px;
