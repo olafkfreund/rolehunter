@@ -21,6 +21,8 @@ const VALID_SOURCES = [
   "ashby",
   "smartrecruiters",
   "company_sites",
+  "arbeitnow",
+  "bundesagentur",
 ] as const;
 
 const VALID_REMOTE = ["remote", "hybrid", "onsite"] as const;

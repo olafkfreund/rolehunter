@@ -176,6 +176,20 @@ export async function getDiagnostics(): Promise<SettingsDiagnostics> {
       [],
       true,
     ),
+    row(
+      "arbeitnow",
+      "Arbeitnow (EU / DACH)",
+      "Free public job-board feed, filtered client-side. No key required.",
+      [],
+      true,
+    ),
+    row(
+      "bundesagentur",
+      "Bundesagentur für Arbeit (DE)",
+      "German federal employment agency Jobsuche API. Public client key, no setup.",
+      [],
+      true,
+    ),
   ];
 
   const providerInfo: Array<{ p: Provider; envVars: string[]; defaultModelKey: keyof typeof env }> =
