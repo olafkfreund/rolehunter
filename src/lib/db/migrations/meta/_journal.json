@@ -57,6 +57,13 @@
       "when": 1781392645709,
       "tag": "0007_famous_black_bolt",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1781393483940,
+      "tag": "0008_ancient_thena",
+      "breakpoints": true
     }
   ]
 }

@@ -20,7 +20,11 @@ export type JobSourceId =
   | "smartrecruiters"
   | "company_sites"
   | "arbeitnow"
-  | "bundesagentur";
+  | "bundesagentur"
+  | "remotive"
+  | "jobicy"
+  | "remoteok"
+  | "himalayas";
 
 export type RemoteMode = "remote" | "hybrid" | "onsite";
 export type SalaryPeriod = "year" | "month" | "hour";

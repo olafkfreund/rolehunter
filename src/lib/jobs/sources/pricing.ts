@@ -30,6 +30,10 @@ const BASE_PRICING: Record<BudgetKey, PricingEntry> = {
   company_sites: { perCall: 0, unit: "free-public-api" },
   arbeitnow:  { perCall: 0,      unit: "free-public-api" },
   bundesagentur: { perCall: 0,   unit: "free-public-api" },
+  remotive:   { perCall: 0,      unit: "free-public-api" },
+  jobicy:     { perCall: 0,      unit: "free-public-api" },
+  remoteok:   { perCall: 0,      unit: "free-public-api" },
+  himalayas:  { perCall: 0,      unit: "free-public-api" },
   auto_score: { perCall: 0.0008, unit: "usd-claude-haiku" },
 };
 

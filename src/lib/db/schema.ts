@@ -37,6 +37,10 @@ export const jobSourceEnum = pgEnum("job_source", [
   "company_sites",
   "arbeitnow",
   "bundesagentur",
+  "remotive",
+  "jobicy",
+  "remoteok",
+  "himalayas",
 ]);
 export const providerEnum = pgEnum("llm_provider", ["claude", "gemini", "openai", "ollama"]);
 export const profileFrequencyEnum = pgEnum("profile_frequency", [

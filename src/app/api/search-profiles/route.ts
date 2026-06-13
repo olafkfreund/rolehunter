@@ -23,6 +23,10 @@ const VALID_SOURCES = [
   "company_sites",
   "arbeitnow",
   "bundesagentur",
+  "remotive",
+  "jobicy",
+  "remoteok",
+  "himalayas",
 ] as const;
 
 const VALID_REMOTE = ["remote", "hybrid", "onsite"] as const;

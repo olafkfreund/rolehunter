@@ -29,7 +29,11 @@ type SourceId =
   | "smartrecruiters"
   | "company_sites"
   | "arbeitnow"
-  | "bundesagentur";
+  | "bundesagentur"
+  | "remotive"
+  | "jobicy"
+  | "remoteok"
+  | "himalayas";
 
 const SOURCES: { id: SourceId; label: string; needsCompanies?: boolean }[] = [
   { id: "jsearch", label: "JSearch" },
@@ -43,6 +47,10 @@ const SOURCES: { id: SourceId; label: string; needsCompanies?: boolean }[] = [
   { id: "reed", label: "Reed.co.uk" },
   { id: "arbeitnow", label: "Arbeitnow (EU / DACH + remote)" },
   { id: "bundesagentur", label: "Bundesagentur für Arbeit (DE)" },
+  { id: "remotive", label: "Remotive (remote)" },
+  { id: "jobicy", label: "Jobicy (remote)" },
+  { id: "remoteok", label: "RemoteOK (remote)" },
+  { id: "himalayas", label: "Himalayas (remote)" },
   { id: "company_sites", label: "Company career sites — auto-detect (use names)", needsCompanies: true },
   { id: "greenhouse", label: "Greenhouse (ATS)", needsCompanies: true },
   { id: "lever", label: "Lever (ATS)", needsCompanies: true },
