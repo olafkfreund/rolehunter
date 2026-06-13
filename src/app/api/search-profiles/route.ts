@@ -17,6 +17,9 @@ const VALID_SOURCES = [
   "greenhouse",
   "lever",
   "workday",
+  "workable",
+  "ashby",
+  "smartrecruiters",
 ] as const;
 
 const VALID_REMOTE = ["remote", "hybrid", "onsite"] as const;

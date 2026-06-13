@@ -14,7 +14,7 @@ interface PreviewJob {
   salaryMax: number | null;
   salaryCurrency: string | null;
   employmentType: string | null;
-  extractionMethod: "json-ld" | "og-meta" | "heuristic";
+  extractionMethod: "ats-api" | "json-ld" | "og-meta" | "heuristic";
 }
 
 export function JobUrlImport() {
@@ -109,8 +109,9 @@ export function JobUrlImport() {
         <div>
           <div className="section-label">Import job from URL</div>
           <div className="text-[12px] text-[var(--fg-3)] mt-1">
-            Paste a public job URL — Greenhouse, Lever, Workday, most company career pages.
-            LinkedIn requires the search adapter (bot-protected). Salary/posted-date/location
+            Paste a public job URL — Greenhouse, Lever, Ashby, Workable, SmartRecruiters,
+            Workday, most company career pages. ATS hosts are pulled straight from their JSON
+            API. LinkedIn requires the search adapter (bot-protected). Salary/posted-date/location
             extracted via JSON-LD when present.
           </div>
         </div>
@@ -185,11 +186,13 @@ export function JobUrlImport() {
               <span
                 className="text-[var(--accent)]"
                 title={
-                  preview.extractionMethod === "json-ld"
-                    ? "schema.org JobPosting — most reliable"
-                    : preview.extractionMethod === "og-meta"
-                      ? "Open Graph tags — partial extraction"
-                      : "heuristic body scan — least reliable"
+                  preview.extractionMethod === "ats-api"
+                    ? "ATS JSON API (Greenhouse/Lever/Ashby/Workable/SmartRecruiters) — most reliable"
+                    : preview.extractionMethod === "json-ld"
+                      ? "schema.org JobPosting — most reliable"
+                      : preview.extractionMethod === "og-meta"
+                        ? "Open Graph tags — partial extraction"
+                        : "heuristic body scan — least reliable"
                 }
               >
                 {preview.extractionMethod}

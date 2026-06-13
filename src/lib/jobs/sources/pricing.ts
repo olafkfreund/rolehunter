@@ -24,6 +24,9 @@ const BASE_PRICING: Record<BudgetKey, PricingEntry> = {
   greenhouse: { perCall: 0,      unit: "free-public-api" },
   lever:      { perCall: 0,      unit: "free-public-api" },
   workday:    { perCall: 0,      unit: "free-public-json" },
+  workable:   { perCall: 0,      unit: "free-public-api" },
+  ashby:      { perCall: 0,      unit: "free-public-api" },
+  smartrecruiters: { perCall: 0, unit: "free-public-api" },
   auto_score: { perCall: 0.0008, unit: "usd-claude-haiku" },
 };
 

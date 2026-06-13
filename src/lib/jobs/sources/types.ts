@@ -14,7 +14,10 @@ export type JobSourceId =
   | "lever"
   | "workday"
   | "glassdoor"
-  | "reed";
+  | "reed"
+  | "workable"
+  | "ashby"
+  | "smartrecruiters";
 
 export type RemoteMode = "remote" | "hybrid" | "onsite";
 export type SalaryPeriod = "year" | "month" | "hour";

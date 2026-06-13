@@ -10,6 +10,8 @@
 
 import { parse } from "node-html-parser";
 
+import { detectAtsUrl, fetchAtsSingle } from "./ats-detect";
+
 export interface ImportedJob {
   title: string;
   company: string;
@@ -22,7 +24,7 @@ export interface ImportedJob {
   salaryCurrency: string | null;
   employmentType: string | null;
   source: "url-import";
-  extractionMethod: "json-ld" | "og-meta" | "heuristic";
+  extractionMethod: "ats-api" | "json-ld" | "og-meta" | "heuristic";
 }
 
 const FETCH_HEADERS: HeadersInit = {
@@ -249,6 +251,31 @@ export async function importJobFromUrl(rawUrl: string): Promise<ImportedJob> {
   }
   if (BLOCKED_HOSTS.has(parsed.host)) {
     throw new Error(BLOCKED_HOST_MESSAGE(parsed.host));
+  }
+
+  // Known ATS host? Pull the posting from its JSON API — far more reliable than
+  // scraping the (often JS-rendered) HTML. Falls through to HTML extraction on
+  // any miss.
+  const atsMatch = detectAtsUrl(parsed);
+  if (atsMatch) {
+    const ats = await fetchAtsSingle(atsMatch).catch(() => null);
+    if (ats && ats.url) {
+      return {
+        title: ats.title || "(untitled)",
+        company: ats.company,
+        location: ats.location,
+        description: ats.description.slice(0, 30_000),
+        url: ats.url,
+        postedAt:
+          ats.postedAt && !Number.isNaN(new Date(ats.postedAt).getTime()) ? ats.postedAt : null,
+        salaryMin: null,
+        salaryMax: null,
+        salaryCurrency: null,
+        employmentType: ats.employmentType,
+        source: "url-import",
+        extractionMethod: "ats-api",
+      };
+    }
   }
 
   const res = await fetch(parsed.href, {
