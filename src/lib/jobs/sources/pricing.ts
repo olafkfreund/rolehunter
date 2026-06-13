@@ -27,6 +27,7 @@ const BASE_PRICING: Record<BudgetKey, PricingEntry> = {
   workable:   { perCall: 0,      unit: "free-public-api" },
   ashby:      { perCall: 0,      unit: "free-public-api" },
   smartrecruiters: { perCall: 0, unit: "free-public-api" },
+  company_sites: { perCall: 0, unit: "free-public-api" },
   auto_score: { perCall: 0.0008, unit: "usd-claude-haiku" },
 };
 

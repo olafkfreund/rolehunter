@@ -17,7 +17,8 @@ export type JobSourceId =
   | "reed"
   | "workable"
   | "ashby"
-  | "smartrecruiters";
+  | "smartrecruiters"
+  | "company_sites";
 
 export type RemoteMode = "remote" | "hybrid" | "onsite";
 export type SalaryPeriod = "year" | "month" | "hour";

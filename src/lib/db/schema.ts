@@ -34,6 +34,7 @@ export const jobSourceEnum = pgEnum("job_source", [
   "workable",
   "ashby",
   "smartrecruiters",
+  "company_sites",
 ]);
 export const providerEnum = pgEnum("llm_provider", ["claude", "gemini", "openai", "ollama"]);
 export const profileFrequencyEnum = pgEnum("profile_frequency", [
@@ -881,3 +882,29 @@ export const appSettings = pgTable("app_settings", {
 });
 
 export type AppSetting = typeof appSettings.$inferSelect;
+
+// ─────────────────────────────────────────────────────────────────────────
+// v3.6 — company → ATS resolution cache (#115)
+//
+// Lets users target company *names* instead of raw ATS slugs. The resolver
+// probes the known per-ATS URL conventions for a normalized name and caches the
+// first hit here so the (live HTTP) probe runs once per company, not per search.
+// `ats`/`slug` are null when no public ATS board was found (negative cache).
+
+export const companyAts = pgTable(
+  "company_ats",
+  {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(), // normalized lookup key (lowercased)
+    displayName: text("display_name").notNull(), // original user-entered name
+    ats: text("ats"), // resolved ATS source id (e.g. "greenhouse"); null = none found
+    slug: text("slug"), // resolved board slug; null = none found
+    resolved: boolean("resolved").notNull().default(false),
+    checkedAt: timestamp("checked_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    nameIdx: uniqueIndex("company_ats_name_idx").on(t.name),
+  }),
+);
+
+export type CompanyAts = typeof companyAts.$inferSelect;
