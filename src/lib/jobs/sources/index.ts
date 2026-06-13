@@ -9,6 +9,7 @@
 
 import { createAdzunaAdapter } from "./adzuna";
 import { createApifyAdapter } from "./apify";
+import { createAshbyAdapter } from "./ashby";
 import { createDiceMcpAdapter } from "./dice-mcp";
 import { createGlassdoorAdapter } from "./glassdoor-apify";
 import { createGreenhouseAdapter } from "./greenhouse";
@@ -19,6 +20,8 @@ import { createLeverAdapter } from "./lever";
 import { createLinkedInAdapter } from "./linkedin";
 import { createPasteAdapter } from "./paste";
 import { createReedAdapter } from "./reed";
+import { createSmartRecruitersAdapter } from "./smartrecruiters";
+import { createWorkableAdapter } from "./workable";
 import { createWorkdayAdapter } from "./workday";
 import { register } from "./registry";
 
@@ -40,6 +43,9 @@ export function ensureAdaptersRegistered(): void {
   register("dice", createDiceMcpAdapter);
   register("glassdoor", createGlassdoorAdapter);
   register("reed", createReedAdapter);
+  register("workable", createWorkableAdapter);
+  register("ashby", createAshbyAdapter);
+  register("smartrecruiters", createSmartRecruitersAdapter);
 }
 
 // Re-exports for ergonomics — anything importing this module gets the full

@@ -23,7 +23,10 @@ type SourceId =
   | "lever"
   | "workday"
   | "glassdoor"
-  | "reed";
+  | "reed"
+  | "workable"
+  | "ashby"
+  | "smartrecruiters";
 
 const SOURCES: { id: SourceId; label: string; needsCompanies?: boolean }[] = [
   { id: "jsearch", label: "JSearch" },
@@ -38,9 +41,19 @@ const SOURCES: { id: SourceId; label: string; needsCompanies?: boolean }[] = [
   { id: "greenhouse", label: "Greenhouse (ATS)", needsCompanies: true },
   { id: "lever", label: "Lever (ATS)", needsCompanies: true },
   { id: "workday", label: "Workday (ATS)", needsCompanies: true },
+  { id: "workable", label: "Workable (ATS)", needsCompanies: true },
+  { id: "ashby", label: "Ashby (ATS)", needsCompanies: true },
+  { id: "smartrecruiters", label: "SmartRecruiters (ATS)", needsCompanies: true },
 ];
 
-const ATS_SOURCES: SourceId[] = ["greenhouse", "lever", "workday"];
+const ATS_SOURCES: SourceId[] = [
+  "greenhouse",
+  "lever",
+  "workday",
+  "workable",
+  "ashby",
+  "smartrecruiters",
+];
 
 const FREQUENCIES: { id: Frequency; label: string }[] = [
   { id: "hourly", label: "Hourly" },
@@ -235,7 +248,7 @@ export function SearchProfilesPanel({
       .map((s) => s.trim())
       .filter(Boolean);
     if (usesAts && companiesList.length === 0) {
-      setError("ATS sources (Greenhouse / Lever / Workday) require at least one company in the Companies field.");
+      setError("ATS sources (Greenhouse / Lever / Workday / Workable / Ashby / SmartRecruiters) require at least one company in the Companies field.");
       return;
     }
     setBusy(true);
@@ -483,8 +496,9 @@ export function SearchProfilesPanel({
                 className="w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-sm font-mono"
               />
               <div className="text-[10px] text-[var(--muted-foreground)]">
-                Greenhouse / Lever: company slug (e.g. <code>stripe</code>). Workday:{" "}
-                <code>tenant/site</code> (e.g. <code>nvidia/External</code>).
+                Greenhouse / Lever / Workable / Ashby / SmartRecruiters: company slug
+                (e.g. <code>stripe</code>). Workday: <code>tenant/site</code> (e.g.{" "}
+                <code>nvidia/External</code>).
               </div>
             </div>
           )}

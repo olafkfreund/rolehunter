@@ -148,6 +148,27 @@ export async function getDiagnostics(): Promise<SettingsDiagnostics> {
       [],
       true,
     ),
+    row(
+      "ats-workable",
+      "Workable (ATS)",
+      "Public account widget API per company. No key required.",
+      [],
+      true,
+    ),
+    row(
+      "ats-ashby",
+      "Ashby (ATS)",
+      "Public job-board posting API per company. No key required.",
+      [],
+      true,
+    ),
+    row(
+      "ats-smartrecruiters",
+      "SmartRecruiters (ATS)",
+      "Public postings API per company. No key required.",
+      [],
+      true,
+    ),
   ];
 
   const providerInfo: Array<{ p: Provider; envVars: string[]; defaultModelKey: keyof typeof env }> =
