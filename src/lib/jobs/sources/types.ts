@@ -18,7 +18,9 @@ export type JobSourceId =
   | "workable"
   | "ashby"
   | "smartrecruiters"
-  | "company_sites";
+  | "company_sites"
+  | "arbeitnow"
+  | "bundesagentur";
 
 export type RemoteMode = "remote" | "hybrid" | "onsite";
 export type SalaryPeriod = "year" | "month" | "hour";

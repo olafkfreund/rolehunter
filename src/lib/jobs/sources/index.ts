@@ -9,7 +9,9 @@
 
 import { createAdzunaAdapter } from "./adzuna";
 import { createApifyAdapter } from "./apify";
+import { createArbeitnowAdapter } from "./arbeitnow";
 import { createAshbyAdapter } from "./ashby";
+import { createBundesagenturAdapter } from "./bundesagentur";
 import { createCompanySitesAdapter } from "./company-sites";
 import { createDiceMcpAdapter } from "./dice-mcp";
 import { createGlassdoorAdapter } from "./glassdoor-apify";
@@ -48,6 +50,8 @@ export function ensureAdaptersRegistered(): void {
   register("ashby", createAshbyAdapter);
   register("smartrecruiters", createSmartRecruitersAdapter);
   register("company_sites", createCompanySitesAdapter);
+  register("arbeitnow", createArbeitnowAdapter);
+  register("bundesagentur", createBundesagenturAdapter);
 }
 
 // Re-exports for ergonomics — anything importing this module gets the full
