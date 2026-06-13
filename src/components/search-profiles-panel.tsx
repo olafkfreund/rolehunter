@@ -26,7 +26,8 @@ type SourceId =
   | "reed"
   | "workable"
   | "ashby"
-  | "smartrecruiters";
+  | "smartrecruiters"
+  | "company_sites";
 
 const SOURCES: { id: SourceId; label: string; needsCompanies?: boolean }[] = [
   { id: "jsearch", label: "JSearch" },
@@ -38,6 +39,7 @@ const SOURCES: { id: SourceId; label: string; needsCompanies?: boolean }[] = [
   { id: "apify", label: "Apify on-demand (paid)" },
   { id: "glassdoor", label: "Glassdoor (via Apify)" },
   { id: "reed", label: "Reed.co.uk" },
+  { id: "company_sites", label: "Company career sites — auto-detect (use names)", needsCompanies: true },
   { id: "greenhouse", label: "Greenhouse (ATS)", needsCompanies: true },
   { id: "lever", label: "Lever (ATS)", needsCompanies: true },
   { id: "workday", label: "Workday (ATS)", needsCompanies: true },
@@ -47,6 +49,7 @@ const SOURCES: { id: SourceId; label: string; needsCompanies?: boolean }[] = [
 ];
 
 const ATS_SOURCES: SourceId[] = [
+  "company_sites",
   "greenhouse",
   "lever",
   "workday",
@@ -496,8 +499,10 @@ export function SearchProfilesPanel({
                 className="w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-sm font-mono"
               />
               <div className="text-[10px] text-[var(--muted-foreground)]">
-                Greenhouse / Lever / Workable / Ashby / SmartRecruiters: company slug
-                (e.g. <code>stripe</code>). Workday: <code>tenant/site</code> (e.g.{" "}
+                <strong>Company career sites:</strong> just plain company names (e.g.{" "}
+                <code>Monzo</code>) — the ATS + slug are auto-detected. For a specific ATS:
+                Greenhouse / Lever / Workable / Ashby / SmartRecruiters use the slug (e.g.{" "}
+                <code>stripe</code>); Workday uses <code>tenant/site</code> (e.g.{" "}
                 <code>nvidia/External</code>).
               </div>
             </div>

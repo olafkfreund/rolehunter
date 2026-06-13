@@ -169,6 +169,13 @@ export async function getDiagnostics(): Promise<SettingsDiagnostics> {
       [],
       true,
     ),
+    row(
+      "company-sites",
+      "Company career sites (auto-detect)",
+      "Resolves company names to their ATS + slug, then pulls jobs. No key required.",
+      [],
+      true,
+    ),
   ];
 
   const providerInfo: Array<{ p: Provider; envVars: string[]; defaultModelKey: keyof typeof env }> =
