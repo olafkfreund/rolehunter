@@ -190,6 +190,34 @@ export async function getDiagnostics(): Promise<SettingsDiagnostics> {
       [],
       true,
     ),
+    row(
+      "remotive",
+      "Remotive (remote)",
+      "Free public remote-jobs API. No key required.",
+      [],
+      true,
+    ),
+    row(
+      "jobicy",
+      "Jobicy (remote)",
+      "Free public remote-jobs API v2. No key required.",
+      [],
+      true,
+    ),
+    row(
+      "remoteok",
+      "RemoteOK (remote)",
+      "Free public API, filtered client-side. No key required.",
+      [],
+      true,
+    ),
+    row(
+      "himalayas",
+      "Himalayas (remote)",
+      "Free public remote-jobs API (≤20/req), filtered client-side. No key required.",
+      [],
+      true,
+    ),
   ];
 
   const providerInfo: Array<{ p: Provider; envVars: string[]; defaultModelKey: keyof typeof env }> =

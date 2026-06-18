@@ -16,13 +16,17 @@ import { createCompanySitesAdapter } from "./company-sites";
 import { createDiceMcpAdapter } from "./dice-mcp";
 import { createGlassdoorAdapter } from "./glassdoor-apify";
 import { createGreenhouseAdapter } from "./greenhouse";
+import { createHimalayasAdapter } from "./himalayas";
 import { createIndeedMcpAdapter } from "./indeed-mcp";
+import { createJobicyAdapter } from "./jobicy";
 import { createJobSpyAdapter } from "./jobspy";
 import { createJSearchAdapter } from "./jsearch";
 import { createLeverAdapter } from "./lever";
 import { createLinkedInAdapter } from "./linkedin";
 import { createPasteAdapter } from "./paste";
 import { createReedAdapter } from "./reed";
+import { createRemoteOkAdapter } from "./remoteok";
+import { createRemotiveAdapter } from "./remotive";
 import { createSmartRecruitersAdapter } from "./smartrecruiters";
 import { createWorkableAdapter } from "./workable";
 import { createWorkdayAdapter } from "./workday";
@@ -52,6 +56,10 @@ export function ensureAdaptersRegistered(): void {
   register("company_sites", createCompanySitesAdapter);
   register("arbeitnow", createArbeitnowAdapter);
   register("bundesagentur", createBundesagenturAdapter);
+  register("remotive", createRemotiveAdapter);
+  register("jobicy", createJobicyAdapter);
+  register("remoteok", createRemoteOkAdapter);
+  register("himalayas", createHimalayasAdapter);
 }
 
 // Re-exports for ergonomics — anything importing this module gets the full
